@@ -1,0 +1,7 @@
+packages:
+  - web
+  - scraper
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
