@@ -4,9 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.ts",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "crawlee": "^3.18.1"
+    "crawlee": "^3.18.1",
+    "got-scraping": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
   }
 }
