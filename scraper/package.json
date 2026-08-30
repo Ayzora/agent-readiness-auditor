@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "crawlee": "^3.18.1",
-    "got-scraping": "^4.2.1"
+    "got-scraping": "^4.2.1",
+    "playwright": "^1.62.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

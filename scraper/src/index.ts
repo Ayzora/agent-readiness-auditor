@@ -1,5 +1,6 @@
-import { rateLimitProbe } from "./rate-limit-probe.js";
-import { robotsAudit } from "./robots-audit.js";
+import { rateLimitProbe } from "./rate-limit-probe.ts";
+import { robotsAudit } from "./robots-audit.ts";
+import { userAgentProb } from "./ua-probe.ts";
 
 const args = process.argv.slice(2);
 const urls = args.filter((arg) => !arg.startsWith("--"));
@@ -14,6 +15,8 @@ if (urls.length === 0) {
 for (const url of urls) {
   const robots = await robotsAudit(url);
   const rateLimit = withRateLimit ? await rateLimitProbe(url) : undefined;
+  const uaResults = await userAgentProb(robots.results, url)
 
-  console.log(JSON.stringify({ url, robots, rateLimit }, null, 2));
+  // console.log(JSON.stringify({ url, robots, rateLimit }, null, 2));
+  console.log(uaResults);
 }
