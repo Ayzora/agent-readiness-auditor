@@ -1,4 +1,4 @@
-import { AGENTS, type Agent, type RobotsAudit } from "./types.ts";
+import { AGENTS, type Agent, type AgentProbeResult, type RobotsAudit } from "./types.ts";
 import { PlaywrightController, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { HttpCrawler, log, LogLevel } from 'crawlee';
 import { type ProbeResult } from "./types.ts";
@@ -102,7 +102,7 @@ export async function humanCrawler(url: string): Promise<ProbeResult> {
         await requestQueue.drop();
     }
 
-    return { statusCode, htmlContent, isChallenged }
+    return {  statusCode, htmlContent, isChallenged }
 }
 
 
@@ -110,7 +110,7 @@ export async function humanCrawler(url: string): Promise<ProbeResult> {
 
 
 
-export async function userAgentProb(results: Record<Agent, boolean>, url: string): Promise<ProbeResult[]> {
+export async function userAgentProb(results: Record<Agent, boolean>, url: string): Promise<AgentProbeResult[]> {
     let allowedAgents = AGENTS.filter((agent) => results[agent])
     let probeResults = [];
 

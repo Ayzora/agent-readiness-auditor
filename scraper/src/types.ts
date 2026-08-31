@@ -44,3 +44,7 @@ export interface ProbeResult{
   isChallenged: boolean | null;
 
 }
+
+export interface AgentProbeResult extends ProbeResult {
+  userAgent: Agent;
+}

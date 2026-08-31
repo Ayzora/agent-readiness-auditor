@@ -15,8 +15,8 @@ if (urls.length === 0) {
 for (const url of urls) {
   const robots = await robotsAudit(url);
  // const rateLimit =  await rateLimitProbe(url);
- // const uaResults = await userAgentProb(robots.results, url)
+  const uaResults = await userAgentProb(robots.results, url)
 
   // console.log(JSON.stringify({ url, robots, rateLimit }, null, 2));
-  console.log(robots);
+  console.log(uaResults);
 }
