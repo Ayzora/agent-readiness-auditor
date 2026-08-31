@@ -29,3 +29,10 @@ export interface RobotsAudit {
 export type RateLimitProbe =
   | { limitFoundAt: number; status: number; requestsSent: number }
   | { limitFoundAt: null; maxTested: number };
+
+
+
+  export interface SitemapFreshness {
+    mostRecentLastmod: string | null;
+    daysSinceMostRecent: number | null;
+}

@@ -1,5 +1,6 @@
 import { AGENTS, type Agent, type RobotsAudit } from "./types.ts";
-import { PlaywrightCrawler, RequestQueue } from 'crawlee';
+import { PlaywrightController, PlaywrightCrawler, RequestQueue } from 'crawlee';
+import { HttpCrawler, log, LogLevel } from 'crawlee';
 
 
 const USER_AGENT_STRINGS: Record<Agent, string> = {
@@ -23,57 +24,111 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
 
 
 
-async function runCustomCrawler(url: string, userAgent: string) {
+async function userAgentCrawler(url: string, userAgent: string) {
     let htmlContent = '';
     let statusCode = null;
+    let isChallenged = null;
 
-    // Each call needs its own queue — a shared/default one remembers this
-    // URL as "already handled" after the first agent visits it, so every
-    // later agent's request gets silently skipped.
     const requestQueue = await RequestQueue.open(`ua-probe-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-    const crawler = new PlaywrightCrawler({
+    const crawler = new HttpCrawler({
         requestQueue,
-        browserPoolOptions: {
-            useFingerprints: false,
-        },
-        launchContext: {
-            launchOptions: {
-                userAgent: userAgent,
-                headless: true
+        useSessionPool: false,
+        additionalMimeTypes: ['*/*'],
+        preNavigationHooks: [
+            async (crawlingContext, gotOptions) => {
+                gotOptions.headers = {
+                    ...gotOptions.headers,
+                    'user-agent': userAgent
+                };
             },
-        },
-        async requestHandler({ page, response }) {
-            statusCode = response?.status();
-            htmlContent = await page.content();
+        ],
+        async requestHandler({ response, body }) {
+            statusCode = response?.statusCode;
+            htmlContent = body.toString('utf-8');
+            //Detect for cloudflare challenge page
+            isChallenged = response?.headers['cf-mitigated'] === "challenge";
+
+
+
+
+
         },
         failedRequestHandler({ request, log }) {
             log.error(`Failed: ${request.url}`);
         },
     });
 
-    await crawler.run([url]);
-    await requestQueue.drop();
+    try {
+        await crawler.run([url]);
+    } finally {
+        await requestQueue.drop();
+    }
 
-    return { statusCode, htmlContent }
+    return { statusCode, htmlContent, isChallenged }
 
 }
+
+
+//Mimic a real user visit to the website (Baseline)
+export async function humanCrawler(url: string) {
+    let htmlContent = '';
+    let statusCode = null;
+    let isChallenged = null;
+
+    const requestQueue = await RequestQueue.open(`ua-probe-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+    const crawler = new PlaywrightCrawler({
+        requestQueue,
+        useSessionPool: false,
+        launchContext: {
+            launchOptions: {
+                headless: true,
+            },
+
+        },
+        async requestHandler({ page, response }) {
+            htmlContent = await page.content();
+            statusCode = response?.status();
+            isChallenged = await response?.headerValue('cf-mitigated') === "challenge";
+        }
+
+    });
+
+    try {
+        await crawler.run([url]);
+    } finally {
+        await requestQueue.drop();
+    }
+
+    return { statusCode, htmlContent, isChallenged }
+}
+
+
+
+
 
 
 export async function userAgentProb(results: Record<Agent, boolean>, url: string) {
     let allowedAgents = AGENTS.filter((agent) => results[agent])
-    let res = []
+    let probeResults = []
 
-    for(let i = 0; i < allowedAgents.length; i++){
-        let item = await runCustomCrawler(url, USER_AGENT_STRINGS[allowedAgents[i]])
-        res.push(item)
+    for (let i = 0; i < allowedAgents.length; i++) {
+        let item = await userAgentCrawler(url, USER_AGENT_STRINGS[allowedAgents[i]])
+        probeResults.push({ userAgent: allowedAgents[i], ...item })
 
     }
-    return res
-
+    return probeResults
 }
 
 
 
 
+console.log(await humanCrawler('https://www.scrapingcourse.com/cloudflare-challenge'))
+//console.log(await humanCrawler('https://nytimes.com'))
 
+
+
+
+//check for 403
+//check if the returned html is actually the page and not captcha
