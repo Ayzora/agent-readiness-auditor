@@ -36,3 +36,11 @@ export type RateLimitProbe =
     mostRecentLastmod: string | null;
     daysSinceMostRecent: number | null;
 }
+
+
+export interface ProbeResult{
+  htmlContent: string | null;
+  statusCode: number | null;
+  isChallenged: boolean | null;
+
+}

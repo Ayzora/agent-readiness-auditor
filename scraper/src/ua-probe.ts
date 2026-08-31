@@ -1,7 +1,7 @@
 import { AGENTS, type Agent, type RobotsAudit } from "./types.ts";
 import { PlaywrightController, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { HttpCrawler, log, LogLevel } from 'crawlee';
-
+import { type ProbeResult } from "./types.ts";
 
 const USER_AGENT_STRINGS: Record<Agent, string> = {
     "ChatGPT-User": "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
@@ -24,7 +24,8 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
 
 
 
-async function userAgentCrawler(url: string, userAgent: string) {
+
+async function userAgentCrawler(url: string, userAgent: string): Promise<ProbeResult> {
     let htmlContent = '';
     let statusCode = null;
     let isChallenged = null;
@@ -71,7 +72,7 @@ async function userAgentCrawler(url: string, userAgent: string) {
 
 
 //Mimic a real user visit to the website (Baseline)
-export async function humanCrawler(url: string) {
+export async function humanCrawler(url: string): Promise<ProbeResult> {
     let htmlContent = '';
     let statusCode = null;
     let isChallenged = null;
@@ -109,9 +110,9 @@ export async function humanCrawler(url: string) {
 
 
 
-export async function userAgentProb(results: Record<Agent, boolean>, url: string) {
+export async function userAgentProb(results: Record<Agent, boolean>, url: string): Promise<ProbeResult[]> {
     let allowedAgents = AGENTS.filter((agent) => results[agent])
-    let probeResults = []
+    let probeResults = [];
 
     for (let i = 0; i < allowedAgents.length; i++) {
         let item = await userAgentCrawler(url, USER_AGENT_STRINGS[allowedAgents[i]])
@@ -123,12 +124,3 @@ export async function userAgentProb(results: Record<Agent, boolean>, url: string
 
 
 
-
-console.log(await humanCrawler('https://www.scrapingcourse.com/cloudflare-challenge'))
-//console.log(await humanCrawler('https://nytimes.com'))
-
-
-
-
-//check for 403
-//check if the returned html is actually the page and not captcha
