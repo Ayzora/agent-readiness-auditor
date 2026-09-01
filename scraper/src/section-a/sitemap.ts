@@ -1,5 +1,5 @@
 import { RobotsTxtFile } from "crawlee";
-import { type SitemapFreshness } from "./types.ts";
+import { type SitemapFreshness } from "../types.ts";
 
 
 
@@ -17,8 +17,8 @@ export async function sitemapInRobots(url: string): Promise<string[]> {
 export async function hasSitemap(url: string): Promise<boolean> {
 
     //first check if there are in returned sitemaps from sitemapInRobots
-    const sitemapsInrobots = await sitemapInRobots(url);
-    if (sitemapsInrobots.length > 0) {
+    const sitemapsInRobots = await sitemapInRobots(url);
+    if (sitemapsInRobots.length > 0) {
         return true
     }
 

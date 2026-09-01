@@ -1,22 +1,7 @@
-import { rateLimitProbe } from "./rate-limit-probe.ts";
-import { robotsAudit } from "./robots-audit.ts";
-import { userAgentProb } from "./ua-probe.ts";
+import { runSectionAAudit } from "./section-a/index.ts";
 
 const args = process.argv.slice(2);
-const urls = args.filter((arg) => !arg.startsWith("--"));
-// Opt-in: the probe sends ~45 requests per URL at a deliberately rising rate.
-//const withRateLimit = args.includes("--rate-limit");
+const url = args.filter((arg) => !arg.startsWith("--"))[0];
 
-if (urls.length === 0) {
-  console.error("usage: pnpm scraper [--rate-limit] <url>...");
-  process.exit(1);
-}
-
-for (const url of urls) {
-  const robots = await robotsAudit(url);
- // const rateLimit =  await rateLimitProbe(url);
-  const uaResults = await userAgentProb(robots.results, url)
-
-  // console.log(JSON.stringify({ url, robots, rateLimit }, null, 2));
-  console.log(uaResults);
-}
+const sectionA = await runSectionAAudit(url);
+console.log(sectionA);

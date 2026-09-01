@@ -26,9 +26,10 @@ export interface RobotsAudit {
   passPercentage: number;
 }
 
-export type RateLimitProbe =
-  | { limitFoundAt: number; status: number; requestsSent: number }
-  | { limitFoundAt: null; maxTested: number };
+export interface RateLimitProbe {
+  passed: boolean;
+  limitFoundAt: number | null;
+}
 
 
 
@@ -45,6 +46,21 @@ export interface ProbeResult{
 
 }
 
-export interface AgentProbeResult extends ProbeResult {
+export interface AgentsProbeResult extends ProbeResult {
   userAgent: Agent;
+}
+
+export interface PayPerCrawlFinding {
+  detected: boolean;
+  agents: Agent[];
+}
+
+export interface PolicyDivergenceFinding {
+  agents: Agent[];
+}
+
+export interface BaselineMisMatch {
+  mismatchedAgents: Agent;
+  baselineHtml: string | null; 
+  agentUaHtml: string | null;
 }

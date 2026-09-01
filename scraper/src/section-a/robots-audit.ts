@@ -1,5 +1,5 @@
 import { RobotsTxtFile } from "crawlee";
-import { AGENTS, type Agent, type RobotsAudit } from "./types.ts";
+import { AGENTS, type Agent, type RobotsAudit } from "../types.ts";
 
 export async function robotsAudit(siteUrl: string): Promise<RobotsAudit> {
   const root = new URL("/", siteUrl).href;

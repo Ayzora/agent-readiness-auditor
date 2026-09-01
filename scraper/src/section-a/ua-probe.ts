@@ -1,7 +1,16 @@
-import { AGENTS, type Agent, type AgentProbeResult, type RobotsAudit } from "./types.ts";
+import {
+    AGENTS,
+    type Agent,
+    type AgentsProbeResult,
+    type BaselineMisMatch,
+    type PayPerCrawlFinding,
+    type PolicyDivergenceFinding,
+    type RobotsAudit,
+} from "../types.ts";
 import { PlaywrightController, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { HttpCrawler, log, LogLevel } from 'crawlee';
-import { type ProbeResult } from "./types.ts";
+import { type ProbeResult } from "../types.ts";
+
 
 const USER_AGENT_STRINGS: Record<Agent, string> = {
     "ChatGPT-User": "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
@@ -21,54 +30,6 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
     "Bingbot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Safari/537.36",
     "Googlebot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36",
 };
-
-
-
-
-async function userAgentCrawler(url: string, userAgent: string): Promise<ProbeResult> {
-    let htmlContent = '';
-    let statusCode = null;
-    let isChallenged = null;
-
-    const requestQueue = await RequestQueue.open(`ua-probe-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-
-    const crawler = new HttpCrawler({
-        requestQueue,
-        useSessionPool: false,
-        additionalMimeTypes: ['*/*'],
-        preNavigationHooks: [
-            async (crawlingContext, gotOptions) => {
-                gotOptions.headers = {
-                    ...gotOptions.headers,
-                    'user-agent': userAgent
-                };
-            },
-        ],
-        async requestHandler({ response, body }) {
-            statusCode = response?.statusCode;
-            htmlContent = body.toString('utf-8');
-            //Detect for cloudflare challenge page
-            isChallenged = response?.headers['cf-mitigated'] === "challenge";
-
-
-
-
-
-        },
-        failedRequestHandler({ request, log }) {
-            log.error(`Failed: ${request.url}`);
-        },
-    });
-
-    try {
-        await crawler.run([url]);
-    } finally {
-        await requestQueue.drop();
-    }
-
-    return { statusCode, htmlContent, isChallenged }
-
-}
 
 
 //Mimic a real user visit to the website (Baseline)
@@ -102,25 +63,96 @@ export async function humanCrawler(url: string): Promise<ProbeResult> {
         await requestQueue.drop();
     }
 
-    return {  statusCode, htmlContent, isChallenged }
+    return { statusCode, htmlContent, isChallenged }
 }
 
 
+async function userAgentCrawler(url: string, userAgentString: string): Promise<ProbeResult> {
+    let htmlContent = '';
+    let statusCode = null;
+    let isChallenged = null;
+
+    const requestQueue = await RequestQueue.open(`ua-probe-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+    const crawler = new HttpCrawler({
+        requestQueue,
+        useSessionPool: false,
+        additionalMimeTypes: ['*/*'],
+        preNavigationHooks: [
+            async (crawlingContext, gotOptions) => {
+                gotOptions.headers = {
+                    ...gotOptions.headers,
+                    'user-agent': userAgentString
+                };
+            },
+        ],
+        async requestHandler({ response, body }) {
+            statusCode = response?.statusCode;
+            htmlContent = body.toString('utf-8');
+            //Detect for cloudflare challenge page
+            isChallenged = response?.headers['cf-mitigated'] === "challenge";
+        },
+        failedRequestHandler({ request, log }) {
+            log.error(`Failed: ${request.url}`);
+        },
+    });
+
+    try {
+        await crawler.run([url]);
+    } finally {
+        await requestQueue.drop();
+    }
+
+    return { statusCode, htmlContent, isChallenged }
+
+}
 
 
-
-
-export async function userAgentProb(results: Record<Agent, boolean>, url: string): Promise<AgentProbeResult[]> {
-    let allowedAgents = AGENTS.filter((agent) => results[agent])
+export async function userAgentProb(robotsResults: Record<Agent, boolean>, url: string): Promise<AgentsProbeResult[]> {
+    let allowedAgents = AGENTS.filter((agent) => robotsResults[agent])
     let probeResults = [];
 
-    for (let i = 0; i < allowedAgents.length; i++) {
-        let item = await userAgentCrawler(url, USER_AGENT_STRINGS[allowedAgents[i]])
-        probeResults.push({ userAgent: allowedAgents[i], ...item })
+    for (let index = 0; index < allowedAgents.length; index++) {
+        let probeResult = await userAgentCrawler(url, USER_AGENT_STRINGS[allowedAgents[index]])
+        probeResults.push({ userAgent: allowedAgents[index], ...probeResult })
 
     }
     return probeResults
 }
 
 
+export function payPerCrawlDetected(agentResults: AgentsProbeResult[]): PayPerCrawlFinding {
+    const agents = agentResults
+        .filter((result) => result.statusCode === 402)
+        .map((result) => result.userAgent);
+
+    return { detected: agents.length > 0, agents };
+}
+
+
+export function findPolicyDivergentAgents(agentResults: AgentsProbeResult[]): PolicyDivergenceFinding {
+    const agents = agentResults
+        .filter((result) => result.isChallenged || (result.statusCode ?? 0) >= 400)
+        .map((result) => result.userAgent);
+
+    return { agents };
+}
+
+
+export function findBaselineMismatchedAgents(baseline: ProbeResult, agentProbs: AgentsProbeResult[]): BaselineMisMatch[] {
+
+    let mismatched: BaselineMisMatch[] = [];
+
+    for (const agent of agentProbs) {
+        if (agent.htmlContent !== baseline.htmlContent) {
+            mismatched.push({
+                mismatchedAgents: agent.userAgent,
+                baselineHtml: baseline.htmlContent,
+                agentUaHtml: agent.htmlContent
+            });
+        }
+    }
+
+    return mismatched
+}
 

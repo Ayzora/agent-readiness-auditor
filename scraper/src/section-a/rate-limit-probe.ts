@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { gotScraping } from "got-scraping";
-import type { RateLimitProbe } from "./types.ts";
+import type { RateLimitProbe } from "../types.ts";
 
 const RATES = [1, 2, 4, 8]; // requests/second, hard cap 10
 const STEP_MILLIS = 3000; // hold each rate this long
@@ -12,11 +12,11 @@ export async function rateLimitProbe(url: string): Promise<RateLimitProbe> {
     let requestsSent = 0;
 
     while (performance.now() - stepStart < STEP_MILLIS) {
-      const response = await request(url);
+      const response = await sendProbeRequest(url);
       requestsSent += 1;
 
       if (isRateLimited(response)) {
-        return { limitFoundAt: rps, status: response.statusCode, requestsSent };
+        return { passed: false, limitFoundAt: rps };
       }
 
       const nextSlot = stepStart + (requestsSent / rps) * 1000;
@@ -24,13 +24,13 @@ export async function rateLimitProbe(url: string): Promise<RateLimitProbe> {
     }
   }
 
-  return { limitFoundAt: null, maxTested: RATES[RATES.length - 1] };
+  return { passed: true, limitFoundAt: null };
 }
 
 
 
 
-function request(url: string) {
+function sendProbeRequest(url: string) {
   return gotScraping({
     url,
     throwHttpErrors: false,
