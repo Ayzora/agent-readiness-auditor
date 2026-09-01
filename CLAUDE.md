@@ -12,11 +12,39 @@ the repo root. Read it before making architectural decisions; this file only
 covers what exists today and the structural rules the spec insists on.
 
 The codebase is currently at the earliest stage of that spec's build order: a
-`scraper` package with two standalone site-level probes (robots.txt audit,
-rate-limit probe) run from a CLI, and a `web` package that is still an
+`scraper` package with Section A (Access — "can an agent get the bytes?")
+implemented as fetch probes plus a handful of Phase 2 check functions, run
+from a CLI against one hardcoded URL, and a `web` package that is still an
 unmodified `create-next-app` scaffold (plus one sample route proving routing
-works). There is no crawler, no checks/scoring engine, no database, and no
-`criteria.yaml` yet.
+works). There is no crawler, no scoring engine, no database, and no
+`criteria.yaml` yet — Section A's checks are hand-written functions, not
+yet driven by a rulebook.
+
+### Section A (done) — reference for building Section B
+
+`scraper/src/section-a/` holds every Section A fetch probe and check
+function, with `section-a/index.ts` as the section's single public entry
+point: it exports `runSectionAAudit(url)`, which runs all of Section A's
+probes and checks and returns one plain object. The root
+`scraper/src/index.ts` never reaches into a section's internal files — it
+only imports that one aggregating function per section and calls it.
+
+When Section B is built, follow the same shape: a `scraper/src/section-b/`
+folder, Phase 1 fetch probes and Phase 2 check functions as separate files
+inside it, and a `section-b/index.ts` exporting one `runSectionBAudit(url)`
+that the root `index.ts` calls alongside `runSectionAAudit`.
+
+Section A's fetch probes (`section-a/ua-probe.ts`, `robots-audit.ts`,
+`rate-limit-probe.ts`, `sitemap.ts`) and checks
+(`payPerCrawlDetected`, `findPolicyDivergentAgents`,
+`findBaselineMismatchedAgents`, all in `ua-probe.ts`) cover: per-agent
+robots.txt allow/deny, a live UA probe per allowed agent, a `humanCrawler`
+baseline fetch, 402/pay-per-crawl detection, policy-vs-reality divergence
+(robots.txt says allow but the agent got challenged/blocked), baseline vs.
+agent HTML mismatch, the gated rate-limit probe, and sitemap
+presence/freshness. Not yet done, deliberately deferred: latency capture
+per UA probe, and sitemap coverage-gap-vs-crawl (blocked on the crawler,
+which doesn't exist yet).
 
 ## Prerequisites
 
@@ -35,7 +63,7 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>...` | Runs the scraper's robots-audit (and optionally rate-limit probe) against one or more URLs |
+| `pnpm scraper <url>` | Runs Section A's full audit (`runSectionAAudit`) against one URL |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 There is no test suite yet.
@@ -71,7 +99,8 @@ across `web`/`scraper` with relative paths.
 ### Scraper module resolution
 
 Relative imports in `scraper/src` use literal `.ts` extensions (e.g.
-`import { robotsAudit } from "./robots-audit.ts"`), enabled by
+`import { robotsAudit } from "./robots-audit.ts"` inside `section-a/`),
+enabled by
 `allowImportingTsExtensions` in `scraper/tsconfig.json`. Node's built-in type
 stripping requires the imported extension to match the file on disk — it does
 NOT rewrite `.js` specifiers to find `.ts` files. Keep new relative imports
@@ -90,8 +119,11 @@ codebase," and it should shape anything added to `scraper`:
 
 This is what will eventually allow re-scoring without re-crawling, offline
 unit tests against saved snapshots, and parallelizing only the slow phase.
-`robots-audit.ts` and `rate-limit-probe.ts` are Phase-1-only site-level
-probes for this reason.
+`section-a/robots-audit.ts` and `section-a/rate-limit-probe.ts` are
+Phase-1-only site-level probes for this reason; the check functions in
+`section-a/ua-probe.ts` (`payPerCrawlDetected`, `findPolicyDivergentAgents`,
+`findBaselineMismatchedAgents`) are the Phase-2 pure functions that consume
+their output.
 
 ### Planned data model (not yet implemented)
 
@@ -107,7 +139,7 @@ is a foreign key into the YAML file, not a DB table.
 
 ### Rate-limit probe safety constraints
 
-`scraper/src/rate-limit-probe.ts` intentionally puts load on someone else's
+`scraper/src/section-a/rate-limit-probe.ts` intentionally puts load on someone else's
 infrastructure — treat any change to it as a safety-sensitive change, not
 just a perf one:
 
