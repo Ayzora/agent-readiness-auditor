@@ -148,3 +148,9 @@ just a perf one:
 - Hits one cheap static asset repeatedly, never dynamic pages.
 - Per the spec, this check should stay opt-in and gated on verified domain
   ownership once that exists — it isn't gated yet.
+
+## ACT Workflow
+
+ACT workflow storage for new Specs is configured in `.act/config.yaml`.
+
+ACT workflow semantics, Workflow Storage selection, artifact vocabulary, and domain-doc guidance are defined in `.act/workflow.md`.
