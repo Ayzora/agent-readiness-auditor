@@ -18,7 +18,7 @@ function removeComments(node: { childNodes: ArrayLike<any> }): void {
     }
 }
 
-// linkedom does not do a browser's full tree correction: only input rooted in a
+// linkedom does not do a browser's full tree correction: only input rooted in aaa
 // real <html> element gets a usable document.body, and on input with no root
 // element at all (a plain-text response body) reading document.body throws. So
 // trust body only for a proper document, and otherwise walk what was parsed.
