@@ -1,3 +1,5 @@
+import type { IncomingHttpHeaders } from "node:http";
+
 export const AGENTS = [
   // User-initiated agents
   "ChatGPT-User",
@@ -79,4 +81,23 @@ export interface Finding {
   // The measured values the verdict rests on, so a report can state "812
   // characters without JavaScript, 9,440 with" rather than only "fail".
   evidence: Record<string, unknown>;
+}
+
+
+export type RenderSettled = "networkidle" | "load-timeout";
+
+export interface PageSnapshot {
+  url: string;
+  resolvedUrl: string | null;
+  rawHtml: string | null;
+  renderedHtml: string | null;
+  visibleText: string | null;
+  domText: string | null;
+  statusCode: number | null;
+  headers: IncomingHttpHeaders | null;
+  redirectChain: string[];
+  browserFinalUrl: string | null;
+  renderSettled: RenderSettled | null;
+  timing: { rawMs: number | null; renderedMs: number | null };
+  error: string | null;
 }
