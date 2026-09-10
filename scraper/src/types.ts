@@ -64,3 +64,19 @@ export interface BaselineMisMatch {
   baselineHtml: string | null; 
   agentUaHtml: string | null;
 }
+
+export type FindingStatus = "pass" | "fail" | "warn" | "skip";
+
+// One check, one page, one outcome. Weight, severity, title and fix text are
+// deliberately absent: those come from the rulebook (criteria.yaml), so checks
+// are not blocked on it existing. `skip` means the check could not run and is
+// excluded from scoring entirely — not a pass, which inflates, and not a fail,
+// which defames.
+export interface Finding {
+  criterionKey: string;
+  url: string;
+  status: FindingStatus;
+  // The measured values the verdict rests on, so a report can state "812
+  // characters without JavaScript, 9,440 with" rather than only "fail".
+  evidence: Record<string, unknown>;
+}
