@@ -2,6 +2,7 @@
 type: Work Item
 title: "CLI wiring and CLAUDE.md amendment"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

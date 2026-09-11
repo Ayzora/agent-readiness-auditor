@@ -2,6 +2,7 @@
 type: Work Item
 title: "Interaction capture"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

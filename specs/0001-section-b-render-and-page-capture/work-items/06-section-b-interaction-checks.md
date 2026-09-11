@@ -2,6 +2,7 @@
 type: Work Item
 title: "Section B interaction-dependent checks"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

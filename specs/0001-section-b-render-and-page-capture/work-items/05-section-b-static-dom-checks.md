@@ -2,6 +2,7 @@
 type: Work Item
 title: "Section B static DOM checks"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

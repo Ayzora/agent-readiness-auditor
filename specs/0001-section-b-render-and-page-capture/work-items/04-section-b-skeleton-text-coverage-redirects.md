@@ -2,6 +2,7 @@
 type: Work Item
 title: "Section B skeleton, text coverage, and redirect findings"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

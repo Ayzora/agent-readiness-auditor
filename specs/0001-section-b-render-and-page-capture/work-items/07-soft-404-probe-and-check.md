@@ -2,6 +2,7 @@
 type: Work Item
 title: "Soft 404 probe and check"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

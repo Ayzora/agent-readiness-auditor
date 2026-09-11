@@ -2,6 +2,7 @@
 type: Work Item
 title: "Page snapshot capture layer"
 parent: ../spec.md
+status: done
 ---
 
 ## What to build

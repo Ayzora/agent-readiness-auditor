@@ -2,6 +2,7 @@
 type: Work Item
 title: "Section A baseline correction"
 parent: ../spec.md
+status: todo
 ---
 
 ## What to build

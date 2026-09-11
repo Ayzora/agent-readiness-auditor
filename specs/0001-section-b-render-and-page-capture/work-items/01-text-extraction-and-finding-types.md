@@ -2,6 +2,7 @@
 type: Work Item
 title: "Text extraction and finding types"
 parent: ../spec.md
+status: done
 ---
 
 ## What to build
