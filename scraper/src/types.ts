@@ -101,3 +101,47 @@ export interface PageSnapshot {
   timing: { rawMs: number | null; renderedMs: number | null };
   error: string | null;
 }
+
+// Measured with zero clicks: the text CSS leaves visible against all text in
+// the DOM, from one walk of the live page so both sides are extracted the same
+// way. A text-parsing agent reads the hidden part perfectly well.
+export interface HiddenTextCapture {
+  visibleChars: number;
+  domChars: number;
+}
+
+export interface ConsentCapture {
+  bannerFound: boolean;
+  accepted: boolean;
+  controlText: string | null;
+  // Both exclude the banner's own text, so the difference is what consent gated.
+  charsBefore: number | null;
+  charsAfter: number | null;
+}
+
+export interface LoadMoreCapture {
+  controlFound: boolean;
+  clicked: boolean;
+  controlText: string | null;
+  charsBefore: number | null;
+  charsAfter: number | null;
+}
+
+export interface ScrollCapture {
+  scrolls: number;
+  charsBefore: number;
+  charsAfter: number;
+}
+
+// What the allowlisted interactions revealed on the snapshot's page. Character
+// counts are extractText over the live DOM, comparable with the snapshot's
+// domText. A step is null when the budget ran out before it could start — the
+// checks reading it skip rather than guess.
+export interface InteractionCapture {
+  hidden: HiddenTextCapture;
+  consent: ConsentCapture | null;
+  loadMore: LoadMoreCapture | null;
+  scroll: ScrollCapture | null;
+  clicks: number;
+  elapsedMs: number;
+}

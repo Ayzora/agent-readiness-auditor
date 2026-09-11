@@ -2,7 +2,7 @@
 type: Work Item
 title: "Interaction capture"
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -26,17 +26,17 @@ Two distinct measurements, deliberately separated:
 
 ## Acceptance criteria
 
-- [ ] `scraper/src/interaction-probe.ts` exists beside `page-snapshot.ts`, not inside any section folder.
-- [ ] It runs on the page session already opened by the capture layer — no second browser session and no additional page load.
-- [ ] Hidden-but-present content is measured with zero clicks, comparing CSS-visible text against full DOM text.
-- [ ] At most 3 clicks and at most 10 seconds are spent per page; both budgets stop the probe regardless of state.
-- [ ] Only allowlist-matching controls are clicked: one load-more control, the consent banner, plus up to 3 scrolls to bottom.
-- [ ] **Nothing inside a `<form>` is ever clicked.**
-- [ ] **No link pointing to a different URL is ever clicked.**
-- [ ] **No control whose visible text matches buy / checkout / submit / pay / delete / sign up / add to cart / subscribe is ever clicked.**
-- [ ] Consent handling captures body text, accepts the banner, and captures again, recording the difference.
-- [ ] If interaction capture fails or hangs, the snapshot is still returned and `interactions` comes back `null`.
-- [ ] `pnpm lint` passes.
+- [x] `scraper/src/interaction-probe.ts` exists beside `page-snapshot.ts`, not inside any section folder.
+- [x] It runs on the page session already opened by the capture layer — no second browser session and no additional page load.
+- [x] Hidden-but-present content is measured with zero clicks, comparing CSS-visible text against full DOM text.
+- [x] At most 3 clicks and at most 10 seconds are spent per page; both budgets stop the probe regardless of state.
+- [x] Only allowlist-matching controls are clicked: one load-more control, the consent banner, plus up to 3 scrolls to bottom.
+- [x] **Nothing inside a `<form>` is ever clicked.**
+- [x] **No link pointing to a different URL is ever clicked.**
+- [x] **No control whose visible text matches buy / checkout / submit / pay / delete / sign up / add to cart / subscribe is ever clicked.**
+- [x] Consent handling captures body text, accepts the banner, and captures again, recording the difference.
+- [x] If interaction capture fails or hangs, the snapshot is still returned and `interactions` comes back `null`.
+- [x] `pnpm lint` passes.
 
 ## Covers
 

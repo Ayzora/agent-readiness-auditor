@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 
-const NON_CONTENT_SELECTOR = "script, style, noscript, template, svg";
+export const NON_CONTENT_SELECTOR = "script, style, noscript, template, svg";
 
 const COMMENT_NODE = 8;
 
