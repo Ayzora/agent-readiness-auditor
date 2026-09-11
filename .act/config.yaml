@@ -1,2 +1,5 @@
 workflow:
-  backend: github
+  backend: local
+
+local:
+  path: specs
