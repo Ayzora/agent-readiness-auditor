@@ -3,21 +3,31 @@ import {
   type InteractionCapture,
   type Finding,
 } from "../types.ts";
-import { redirectFindings } from "./redirect-findings.ts";
 import {
   getEmptyRenderedPage as emptyRenderedPage,
   getTextCoverage as textCoverage,
-} from "./text-coverage.ts";
-
+  redirectFindings,
+} from "./text-coverage-and-redirects.ts";
+import {
+  canvasContent,
+  hiddenButPresent,
+  iframePrimaryContent,
+  missingImagesAlt,
+} from "./static-dom-checks.ts";
 
 export function runSectionBAudit(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
 ): Finding[] {
   return [
+    // work item 4
     textCoverage(snapshot),
     emptyRenderedPage(snapshot),
-    ...redirectFindings(snapshot)
-    
+    ...redirectFindings(snapshot),
+    // work item 5
+    hiddenButPresent(snapshot, interactions),
+    missingImagesAlt(snapshot),
+    canvasContent(snapshot),
+    iframePrimaryContent(snapshot),
   ];
 }
