@@ -2,7 +2,7 @@
 type: Work Item
 title: "Section B skeleton, text coverage, and redirect findings"
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -29,18 +29,18 @@ Implements two things:
 
 ## Acceptance criteria
 
-- [ ] `scraper/src/section-b/index.ts` exports `runSectionBAudit(snapshot, interactions): Finding[]`.
-- [ ] **`runSectionBAudit` is synchronous, not `async`.** Making it `async` would silently permit I/O back into Phase 2 and destroy the Test Seam.
-- [ ] No file under `section-b/` imports `got-scraping`, `playwright`, `crawlee`, `fetch`, or any other network capability.
-- [ ] `render.text_coverage` computes raw ÷ rendered character length, both produced by the shared `extractText`.
-- [ ] The reported ratio is clamped to `[0, 1]`; the unclamped value is preserved in evidence, since a ratio above 1 (JS removing SSR content) is itself signal.
-- [ ] A zero denominator yields `null` — never `0` and never `NaN` — and emits its own separate finding, because an empty rendered page is a different problem with different remediation.
-- [ ] Evidence on every finding carries the measured values the verdict rests on (e.g. `rawChars`, `renderedChars`, `ratio`).
-- [ ] Thresholds are named constants in one place per check, not inline literals.
-- [ ] A JavaScript-only redirect, raw/browser halves finishing at different addresses, and a redirect to the homepage each emit a finding.
-- [ ] A redirect chain of 3+ hops emits a low-severity finding.
-- [ ] **A plain single-hop redirect emits no finding.**
-- [ ] `pnpm lint` passes.
+- [x] `scraper/src/section-b/index.ts` exports `runSectionBAudit(snapshot, interactions): Finding[]`.
+- [x] **`runSectionBAudit` is synchronous, not `async`.** Making it `async` would silently permit I/O back into Phase 2 and destroy the Test Seam.
+- [x] No file under `section-b/` imports `got-scraping`, `playwright`, `crawlee`, `fetch`, or any other network capability.
+- [x] `render.text_coverage` computes raw ÷ rendered character length, both produced by the shared `extractText`.
+- [x] The reported ratio is clamped to `[0, 1]`; the unclamped value is preserved in evidence, since a ratio above 1 (JS removing SSR content) is itself signal.
+- [x] A zero denominator yields `null` — never `0` and never `NaN` — and emits its own separate finding, because an empty rendered page is a different problem with different remediation.
+- [x] Evidence on every finding carries the measured values the verdict rests on (e.g. `rawChars`, `renderedChars`, `ratio`).
+- [x] Thresholds are named constants in one place per check, not inline literals.
+- [x] A JavaScript-only redirect, raw/browser halves finishing at different addresses, and a redirect to the homepage each emit a finding.
+- [x] A redirect chain of 3+ hops emits a low-severity finding.
+- [x] **A plain single-hop redirect emits no finding.**
+- [x] `pnpm lint` passes.
 
 ## Covers
 
@@ -52,3 +52,43 @@ Implements two things:
 
 - `01-text-extraction-and-finding-types.md`
 - `02-page-snapshot-capture-layer.md`
+
+## Summary
+
+Completed 2026-09-13. Section B's entry point and its first two check families, all
+pure functions over a captured `PageSnapshot`.
+
+**Built**
+
+- `scraper/src/section-b/index.ts` — synchronous `runSectionBAudit(snapshot, interactions): Finding[]`.
+  `interactions` is accepted but unread until the interaction-dependent checks land.
+- `scraper/src/section-b/text-coverage.ts` — `render.text_coverage` (raw ÷ rendered
+  characters, clamped to `[0, 1]` with the unclamped value kept in evidence) and
+  `render.empty_rendered_page`.
+- `scraper/src/section-b/redirect-findings.ts` — `render.js_redirect`,
+  `render.halves_diverged`, `render.homepage_redirect` and
+  `render.long_redirect_chain`, plus `pathOf`, `originOf` and `sameAddress` helpers.
+
+**Decisions taken while building**
+
+- Both sides of the ratio are extracted inside the check rather than read from
+  `snapshot.domText`, so a stored snapshot can never be scored by comparing two
+  versions of the extractor.
+- A zero denominator returns `ratio: null` and `skip`. The two causes are kept
+  apart: a failed capture is ours (`skip`), an empty render is the site's (`fail`).
+- Redirect checks stay silent when nothing is wrong — only the four named shapes
+  emit findings, and a plain single-hop redirect emits none.
+- `render.js_redirect` is **inferred** (no server hops, yet the browser moved),
+  not observed. Evidence carries both URLs so the inference can be checked.
+- URL comparison normalises the trailing slash and ignores query and fragment,
+  trading a rare false negative for far fewer false positives.
+
+**Follow-ups recorded, not done**
+
+- Record browser-side navigation in `page-snapshot.ts` so `render.js_redirect`
+  observes rather than infers.
+- Decide whether `render.text_coverage` should skip when `render.halves_diverged`
+  fires, since the ratio then compares two different pages.
+- `snapshot.domText` is a derived value no check reads any more — candidate for removal.
+
+**Verification** — `pnpm lint` passes. Manual CLI verification belongs to work item 09.
