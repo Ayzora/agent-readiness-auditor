@@ -14,6 +14,11 @@ import {
   iframePrimaryContent,
   missingImagesAlt,
 } from "./static-dom-checks.ts";
+import {
+  consentWall,
+  contentBehindInteraction,
+  infiniteScroll,
+} from "./interaction-checks.ts";
 
 export function runSectionBAudit(
   snapshot: PageSnapshot,
@@ -29,5 +34,9 @@ export function runSectionBAudit(
     missingImagesAlt(snapshot),
     canvasContent(snapshot),
     iframePrimaryContent(snapshot),
+    // work item 6
+    contentBehindInteraction(snapshot, interactions),
+    infiniteScroll(snapshot, interactions),
+    consentWall(snapshot, interactions),
   ];
 }
