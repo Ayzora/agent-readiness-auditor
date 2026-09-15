@@ -6,7 +6,7 @@ import type { PageSnapshot, RenderSettled } from "./types.ts";
 // Both halves send this. The ratio must isolate JavaScript dependence alone:
 // varying the user agent as well would conflate "you block this agent" with
 // "you require JavaScript", and Section A already measures the former.
-const DESKTOP_CHROME_UA =
+export const DESKTOP_CHROME_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 const RAW_TIMEOUT_MS = 15_000;

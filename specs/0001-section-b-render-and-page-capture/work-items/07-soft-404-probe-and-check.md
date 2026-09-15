@@ -2,7 +2,7 @@
 type: Work Item
 title: "Soft 404 probe and check"
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -25,15 +25,15 @@ A page that returns 200 while showing an error is silently invisible to every ag
 
 ## Acceptance criteria
 
-- [ ] A site-level Phase 1 probe requests `/zzz-does-not-exist-<random>` once per site, with a fresh random suffix per run.
-- [ ] The probe records the status code and the error page's normalised text fingerprint.
-- [ ] The probe lives outside `section-b/`, and no network code is added to `section-b/`.
-- [ ] `render.soft_404` is a pure check emitting a `Finding`.
-- [ ] `render.soft_404` returns `fail` when a page returns 200 with error-shaped content matching the fingerprint.
-- [ ] `render.soft_404` returns `skip` when the page's status is not 200.
-- [ ] Evidence carries what the verdict rests on — the probe's status code and the fingerprint match.
-- [ ] The probe never throws; a probe failure degrades the check to `skip`.
-- [ ] `pnpm lint` passes.
+- [x] A site-level Phase 1 probe requests `/zzz-does-not-exist-<random>` once per site, with a fresh random suffix per run.
+- [x] The probe records the status code and the error page's normalised text fingerprint.
+- [x] The probe lives outside `section-b/`, and no network code is added to `section-b/`.
+- [x] `render.soft_404` is a pure check emitting a `Finding`.
+- [x] `render.soft_404` returns `fail` when a page returns 200 with error-shaped content matching the fingerprint.
+- [x] `render.soft_404` returns `skip` when the page's status is not 200.
+- [x] Evidence carries what the verdict rests on — the probe's status code and the fingerprint match.
+- [x] The probe never throws; a probe failure degrades the check to `skip`.
+- [x] `pnpm lint` passes.
 
 ## Covers
 

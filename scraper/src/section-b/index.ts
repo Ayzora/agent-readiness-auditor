@@ -2,6 +2,7 @@ import {
   type PageSnapshot,
   type InteractionCapture,
   type Finding,
+  type Soft404Probe,
 } from "../types.ts";
 import {
   getEmptyRenderedPage as emptyRenderedPage,
@@ -14,6 +15,7 @@ import {
   iframePrimaryContent,
   missingImagesAlt,
 } from "./static-dom-checks.ts";
+import { soft404 } from "./soft-404.ts";
 import {
   consentWall,
   contentBehindInteraction,
@@ -23,6 +25,7 @@ import {
 export function runSectionBAudit(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
+  soft404Probe: Soft404Probe | null,
 ): Finding[] {
   return [
     // work item 4
@@ -38,5 +41,7 @@ export function runSectionBAudit(
     contentBehindInteraction(snapshot, interactions),
     infiniteScroll(snapshot, interactions),
     consentWall(snapshot, interactions),
+    // work item 7
+    soft404(snapshot, soft404Probe),
   ];
 }

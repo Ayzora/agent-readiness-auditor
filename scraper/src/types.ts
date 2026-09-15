@@ -145,3 +145,13 @@ export interface InteractionCapture {
   clicks: number;
   elapsedMs: number;
 }
+
+// Site-scope: what one request to a URL that cannot exist came back as. A 200
+// means the site soft-404s, and `fingerprint` is then the shape its error page
+// takes, for real pages to be compared against.
+export interface Soft404Probe {
+  probeUrl: string;
+  statusCode: number | null;
+  fingerprint: string | null;
+  error: string | null;
+}
