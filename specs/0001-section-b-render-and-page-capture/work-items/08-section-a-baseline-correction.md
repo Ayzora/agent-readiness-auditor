@@ -2,7 +2,7 @@
 type: Work Item
 title: "Section A baseline correction"
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -28,15 +28,15 @@ Two changes:
 
 ## Acceptance criteria
 
-- [ ] `humanCrawler()` is deleted, along with its now-unused Crawlee imports.
-- [ ] `runSectionAAudit(url, snapshot)` accepts both the URL and the page snapshot.
-- [ ] The UA-probe baseline is the snapshot's **raw** half, so both sides of the comparison are raw HTML.
-- [ ] `findBaselineMismatchedAgents` compares normalised text length via the shared `extractText`, not `!==` on HTML and not a hash.
-- [ ] A mismatch is flagged only when lengths differ by more than 10%.
-- [ ] Robots, sitemap and rate-limit probes are unchanged and still take the URL.
-- [ ] No Section A probe is migrated to `got-scraping`/Playwright as part of this Work Item.
-- [ ] Section A still returns its existing output shape; it is not converted to findings here.
-- [ ] `pnpm lint` passes.
+- [x] `humanCrawler()` is deleted, along with its now-unused Crawlee imports.
+- [x] `runSectionAAudit(url, snapshot)` accepts both the URL and the page snapshot.
+- [x] The UA-probe baseline is the snapshot's **raw** half, so both sides of the comparison are raw HTML.
+- [x] `findBaselineMismatchedAgents` compares normalised text length via the shared `extractText`, not `!==` on HTML and not a hash.
+- [x] A mismatch is flagged only when lengths differ by more than 10%.
+- [x] Robots, sitemap and rate-limit probes are unchanged and still take the URL.
+- [x] No Section A probe is migrated to `got-scraping`/Playwright as part of this Work Item.
+- [x] Section A still returns its existing output shape; it is not converted to findings here.
+- [x] `pnpm lint` passes.
 
 ## Covers
 
