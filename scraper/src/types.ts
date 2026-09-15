@@ -63,8 +63,8 @@ export interface PolicyDivergenceFinding {
 
 export interface BaselineMisMatch {
   mismatchedAgents: Agent;
-  baselineHtml: string | null; 
-  agentUaHtml: string | null;
+  baselineTextLength: number;
+  agentTextLength: number;
 }
 
 export type FindingStatus = "pass" | "fail" | "warn" | "skip";

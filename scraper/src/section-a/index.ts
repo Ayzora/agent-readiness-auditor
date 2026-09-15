@@ -3,22 +3,20 @@ import { robotsAudit } from "./robots-audit.ts";
 import {
   findBaselineMismatchedAgents,
   findPolicyDivergentAgents,
-  humanCrawler,
   payPerCrawlDetected,
   userAgentProb,
 } from "./ua-probe.ts";
 import { hasSitemap, sitemapFreshness, sitemapInRobots } from "./sitemap.ts";
+import type { PageSnapshot } from "../types.ts";
 
-export async function runSectionAAudit(url: string) {
+export async function runSectionAAudit(url: string, snapshot: PageSnapshot) {
   const robotsAuditResult = await robotsAudit(url);
 
-  //perform human and user agent crawls
-  const humanBaseline = await humanCrawler(url);
   const uaProbeResults = await userAgentProb(robotsAuditResult.results, url);
 
   const policyDivergentAgents = findPolicyDivergentAgents(uaProbeResults);
   const payPerCrawl = payPerCrawlDetected(uaProbeResults);
-  const baselineMismatchedAgents = findBaselineMismatchedAgents(humanBaseline, uaProbeResults);
+  const baselineMismatchedAgents = findBaselineMismatchedAgents(snapshot.rawHtml, uaProbeResults);
 
   const rateLimit = await rateLimitProbe(url);
   const sitemapExists = await hasSitemap(url);
@@ -27,7 +25,6 @@ export async function runSectionAAudit(url: string) {
 
   return {
     robotsAuditResult,
-    humanBaseline,
     uaProbeResults,
     policyDivergentAgents,
     payPerCrawl,

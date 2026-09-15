@@ -7,10 +7,12 @@ import {
     type PolicyDivergenceFinding,
     type RobotsAudit,
 } from "../types.ts";
-import { PlaywrightController, PlaywrightCrawler, RequestQueue } from 'crawlee';
-import { HttpCrawler, log, LogLevel } from 'crawlee';
+import { HttpCrawler, RequestQueue } from 'crawlee';
 import { type ProbeResult } from "../types.ts";
+import { extractText } from "../extract-text.ts";
 
+
+const BASELINE_MISMATCH_THRESHOLD = 0.1;
 
 const USER_AGENT_STRINGS: Record<Agent, string> = {
     "ChatGPT-User": "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
@@ -30,41 +32,6 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
     "Bingbot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Safari/537.36",
     "Googlebot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36",
 };
-
-
-//Mimic a real user visit to the website (Baseline)
-export async function humanCrawler(url: string): Promise<ProbeResult> {
-    let htmlContent = '';
-    let statusCode = null;
-    let isChallenged = null;
-
-    const requestQueue = await RequestQueue.open(`ua-probe-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-
-    const crawler = new PlaywrightCrawler({
-        requestQueue,
-        useSessionPool: false,
-        launchContext: {
-            launchOptions: {
-                headless: true,
-            },
-
-        },
-        async requestHandler({ page, response }) {
-            htmlContent = await page.content();
-            statusCode = response?.status();
-            isChallenged = await response?.headerValue('cf-mitigated') === "challenge";
-        }
-
-    });
-
-    try {
-        await crawler.run([url]);
-    } finally {
-        await requestQueue.drop();
-    }
-
-    return { statusCode, htmlContent, isChallenged }
-}
 
 
 async function userAgentCrawler(url: string, userAgentString: string): Promise<ProbeResult> {
@@ -139,20 +106,29 @@ export function findPolicyDivergentAgents(agentResults: AgentsProbeResult[]): Po
 }
 
 
-export function findBaselineMismatchedAgents(baseline: ProbeResult, agentProbs: AgentsProbeResult[]): BaselineMisMatch[] {
+export function findBaselineMismatchedAgents(
+    baselineRawHtml: string | null,
+    agentProbs: AgentsProbeResult[],
+): BaselineMisMatch[] {
+
+    const baselineTextLength = extractText(baselineRawHtml).length;
+
+    if (baselineTextLength === 0) return [];
 
     let mismatched: BaselineMisMatch[] = [];
 
     for (const agent of agentProbs) {
-        if (agent.htmlContent !== baseline.htmlContent) {
+        const agentTextLength = extractText(agent.htmlContent).length;
+        const difference = Math.abs(agentTextLength - baselineTextLength) / baselineTextLength;
+
+        if (difference > BASELINE_MISMATCH_THRESHOLD) {
             mismatched.push({
                 mismatchedAgents: agent.userAgent,
-                baselineHtml: baseline.htmlContent,
-                agentUaHtml: agent.htmlContent
+                baselineTextLength,
+                agentTextLength,
             });
         }
     }
 
     return mismatched
 }
-
