@@ -4,6 +4,7 @@
 import { parseHTML } from "linkedom";
 import { extractText } from "../extract-text.ts";
 import type { Finding, InteractionCapture, PageSnapshot } from "../types.ts";
+import { percentage, skipped } from "./utils.ts";
 
 // Every threshold here is asserted, not derived, and expected to be wrong at
 // first. They lift into criteria.yaml at build step 2.
@@ -50,28 +51,19 @@ export function hiddenButPresent(
   interactions: InteractionCapture | null,
 ): Finding {
   const CRITERION = "render.hidden_but_present";
+  const skip = (reason: string, evidence?: Record<string, unknown>) =>
+    skipped(CRITERION, snapshot.url, reason, evidence);
   const { visibleChars, domChars } = interactions?.hidden ?? {};
 
   if (visibleChars == null || domChars == null || snapshot.renderedHtml == null)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: {
-        reason: snapshot.renderedHtml == null ? "render failed" : "interaction capture did not run",
-        error: snapshot.error,
-      },
-    };
+    return skip(
+      snapshot.renderedHtml == null ? "render failed" : "interaction capture did not run",
+      { error: snapshot.error },
+    );
 
-  if (domChars === 0)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { reason: "rendered page has no text", visibleChars, domChars },
-    };
+  if (domChars === 0) return skip("rendered page has no text", { visibleChars, domChars });
 
-  const hiddenPercentage = Math.round(((domChars - visibleChars) / domChars) * 100);
+  const hiddenPercentage = percentage(domChars - visibleChars, domChars);
   const status = hiddenPercentage < HIDDEN_TEXT_WARN_PERCENT ? "pass" : "warn";
 
   return {
@@ -92,30 +84,20 @@ export function hiddenButPresent(
 // missing alt attribute counts against the page.
 export function missingImagesAlt(snapshot: PageSnapshot): Finding {
   const CRITERION = "render.images_missing_alt";
+  const skip = (reason: string, evidence?: Record<string, unknown>) =>
+    skipped(CRITERION, snapshot.url, reason, evidence);
   const { renderedHtml } = snapshot;
 
-  if (renderedHtml == null)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { reason: "render failed", error: snapshot.error },
-    };
+  if (renderedHtml == null) return skip("render failed", { error: snapshot.error });
 
   const { document } = parseHTML(renderedHtml);
   const images = Array.from(document.querySelectorAll("img"));
 
-  if (images.length === 0)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { reason: "page has no images", totalImages: 0 },
-    };
+  if (images.length === 0) return skip("page has no images", { totalImages: 0 });
 
   const totalImages = images.length;
   const imagesMissingAlt = images.filter((image) => !image.hasAttribute("alt")).length;
-  const missingAltPercentage = (imagesMissingAlt / totalImages) * 100;
+  const missingAltPercentage = percentage(imagesMissingAlt, totalImages);
 
   const status =
     missingAltPercentage < MISSING_ALT_WARN_PERCENT
@@ -154,12 +136,7 @@ export function canvasContent(snapshot: PageSnapshot): Finding {
   const { renderedHtml } = snapshot;
 
   if (renderedHtml == null)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { reason: "render failed", error: snapshot.error },
-    };
+    return skipped(CRITERION, snapshot.url, "render failed", { error: snapshot.error });
 
   const { document } = parseHTML(renderedHtml);
   const canvases = document.querySelectorAll("canvas");
@@ -256,12 +233,7 @@ export function iframePrimaryContent(snapshot: PageSnapshot): Finding {
   const { renderedHtml } = snapshot;
 
   if (renderedHtml == null)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { reason: "render failed", error: snapshot.error },
-    };
+    return skipped(CRITERION, snapshot.url, "render failed", { error: snapshot.error });
 
   const { document } = parseHTML(renderedHtml);
   const elements = Array.from(document.querySelectorAll("iframe"));

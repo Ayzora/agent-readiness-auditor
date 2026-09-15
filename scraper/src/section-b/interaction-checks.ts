@@ -4,6 +4,7 @@
 
 import { parseHTML } from "linkedom";
 import type { Finding, InteractionCapture, PageSnapshot } from "../types.ts";
+import { percentage, skipped } from "./utils.ts";
 
 // Asserted, not derived. They lift into criteria.yaml at build step 2.
 const CONTENT_GROWTH_FAIL_PERCENT = 10;
@@ -12,23 +13,6 @@ const CONSENT_GATED_FAIL_PERCENT = 30;
 
 const PAGINATION_HREF = /[?&]page=\d|\/page\/\d/i;
 const PAGINATION_LABEL = /pagin/i;
-
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-function skipped(
-  criterionKey: string,
-  url: string,
-  reason: string,
-  evidence: Record<string, unknown> = {},
-): Finding {
-  return { criterionKey, url, status: "skip", evidence: { reason, ...evidence } };
-}
-
-function percentage(part: number, whole: number): number {
-  return Math.round((part / whole) * 100);
-}
 
 // ---------------------------------------------------------------------------
 // render.content_behind_interaction — the "Load more" button

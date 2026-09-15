@@ -5,6 +5,7 @@
 
 import type { Finding, FindingStatus, PageSnapshot } from "../types.ts";
 import { extractText } from "../extract-text.ts";
+import { skipped } from "./utils.ts";
 
 // Asserted, not derived — expected to be wrong at first, and ready to lift into
 // criteria.yaml at build step 2. The principle underneath: could an agent
@@ -30,20 +31,12 @@ export function getTextCoverage(snapshot: PageSnapshot): Finding {
   const renderedChars = renderedText.length;
 
   if (snapshot.renderedHtml === null || renderedChars === 0) {
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: {
-        rawChars,
-        renderedChars,
-        ratio: null,
-        reason:
-          snapshot.renderedHtml === null
-            ? "render failed"
-            : "rendered page has no text",
-      },
-    };
+    return skipped(
+      CRITERION,
+      snapshot.url,
+      snapshot.renderedHtml === null ? "render failed" : "rendered page has no text",
+      { rawChars, renderedChars, ratio: null },
+    );
   }
 
   const unclampedRatio = rawChars / renderedChars;
@@ -76,12 +69,10 @@ export function getEmptyRenderedPage(snapshot: PageSnapshot): Finding {
   const renderedChars = extractText(snapshot.renderedHtml).length;
 
   if (snapshot.renderedHtml === null)
-    return {
-      criterionKey: CRITERION,
-      url: snapshot.url,
-      status: "skip",
-      evidence: { renderedChars: null, error: snapshot.error },
-    };
+    return skipped(CRITERION, snapshot.url, "render failed", {
+      renderedChars: null,
+      error: snapshot.error,
+    });
   if (renderedChars === 0)
     return {
       criterionKey: CRITERION,
