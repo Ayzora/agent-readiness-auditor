@@ -1,5 +1,7 @@
 import { RobotsTxtFile } from "crawlee";
-import { type SitemapFreshness } from "../types.ts";
+import { type Finding, type SitemapFreshness } from "../types.ts";
+
+const SITEMAP_STALE_DAYS = 90;
 
 
 
@@ -55,4 +57,30 @@ export async function sitemapFreshness(sitemapUrl: string): Promise<SitemapFresh
     } catch {
         return { mostRecentLastmod: null, daysSinceMostRecent: null };
     }
+}
+
+
+export function sitemapPresent(url: string, exists: boolean, urlsFromRobots: string[]): Finding {
+    return {
+        criterionKey: "access.sitemap_present",
+        url,
+        status: exists ? (urlsFromRobots.length > 0 ? "pass" : "warn") : "fail",
+        evidence: { exists, urlsFromRobots },
+    };
+}
+
+export function sitemapFresh(url: string, exists: boolean, freshness: SitemapFreshness): Finding {
+    const criterionKey = "access.sitemap_freshness";
+
+    if (!exists) return { criterionKey, url, status: "skip", evidence: { reason: "no sitemap" } };
+    if (freshness.daysSinceMostRecent === null) {
+        return { criterionKey, url, status: "skip", evidence: { reason: "no readable lastmod" } };
+    }
+
+    return {
+        criterionKey,
+        url,
+        status: freshness.daysSinceMostRecent > SITEMAP_STALE_DAYS ? "warn" : "pass",
+        evidence: { ...freshness },
+    };
 }

@@ -352,10 +352,14 @@ checks — `js_redirect`, `halves_diverged`, `homepage_redirect`,
 no redirect trouble contributes none of them. A criterion with no finding for
 a page is absent from scoring for that page, exactly as a `skip` is.
 
-Section A does not participate yet. It returns bespoke shapes — `RobotsAudit`,
-`PayPerCrawlFinding`, `BaselineMisMatch` — with no `criterionKey` anywhere in
-`section-a/`. Section B is the first code written to the `Finding` contract.
-Section A needs converting before scoring can cover both.
+Section A, emitted once per run:
+
+```
+access.robots_allows_agents    access.rate_limit
+access.policy_divergence       access.sitemap_present
+access.pay_per_crawl           access.sitemap_freshness
+access.baseline_mismatch
+```
 
 ## Open decisions
 

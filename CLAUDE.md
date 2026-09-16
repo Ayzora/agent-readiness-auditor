@@ -98,8 +98,9 @@ defames. Every `skip` carries a distinct `reason` in its evidence.
 Criterion keys use the **dimension**, never the section folder:
 `render.text_coverage`, not `section-b.*`. See `GLOSSARY.md`.
 
-Section B is the first code written to the `Finding` contract; Section A still
-returns bespoke shapes and converts at build step 2 when the rulebook lands.
+Section A returns `Finding`s too (`access.*` keys), from small check functions
+kept beside the probe whose data they read. Site-scope findings use the site
+root as their `url`.
 
 ## Prerequisites
 

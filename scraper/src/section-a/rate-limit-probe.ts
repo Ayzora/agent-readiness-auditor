@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { gotScraping } from "got-scraping";
-import type { RateLimitProbe } from "../types.ts";
+import type { Finding, RateLimitProbe } from "../types.ts";
 
 const RATES = [1, 2, 4, 8]; // requests/second, hard cap 10
 const STEP_MILLIS = 3000; // hold each rate this long
@@ -47,4 +47,13 @@ function isRateLimited({
   headers: IncomingHttpHeaders;
 }): boolean {
   return statusCode === 429 || headers["retry-after"] !== undefined;
+}
+
+export function rateLimit(url: string, probe: RateLimitProbe): Finding {
+  return {
+    criterionKey: "access.rate_limit",
+    url,
+    status: probe.passed ? "pass" : "warn",
+    evidence: { limitFoundAt: probe.limitFoundAt },
+  };
 }

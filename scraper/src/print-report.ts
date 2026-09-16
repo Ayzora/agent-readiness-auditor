@@ -1,9 +1,6 @@
-import { inspect } from "node:util";
 import type { Finding, FindingStatus, InteractionCapture, PageSnapshot } from "./types.ts";
 
 const STATUS_ORDER = ["fail", "warn", "skip", "pass"] as const;
-
-const SECTION_A_INSPECT = { depth: null, maxStringLength: 200 } as const;
 
 const MAX_EVIDENCE_VALUE_CHARS = 160;
 
@@ -28,19 +25,14 @@ export function printCapture(snapshot: PageSnapshot, interactions: InteractionCa
   if (snapshot.error) console.log(`  error           ${snapshot.error}`);
 }
 
-export function printSectionA(result: unknown): void {
-  console.log("\n=== Section A — access ===\n");
-  console.log(inspect(result, SECTION_A_INSPECT));
-}
-
 export function printSectionAFailure(error: unknown): void {
   console.log("\n=== Section A — access ===\n");
   console.log(`  failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
-export function printFindings(findings: Finding[]): void {
+export function printFindings(title: string, findings: Finding[]): void {
   const counts = STATUS_ORDER.map((status) => `${countOf(findings, status)} ${status}`).join(", ");
-  console.log(`\n=== Section B — render === (${findings.length} findings: ${counts})\n`);
+  console.log(`\n=== ${title} === (${findings.length} findings: ${counts})\n`);
 
   for (const status of STATUS_ORDER) {
     const group = findings.filter((finding) => finding.status === status);

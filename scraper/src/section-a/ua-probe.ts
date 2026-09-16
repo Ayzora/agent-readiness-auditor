@@ -2,10 +2,7 @@ import {
     AGENTS,
     type Agent,
     type AgentsProbeResult,
-    type BaselineMisMatch,
-    type PayPerCrawlFinding,
-    type PolicyDivergenceFinding,
-    type RobotsAudit,
+    type Finding,
 } from "../types.ts";
 import { HttpCrawler, RequestQueue } from 'crawlee';
 import { type ProbeResult } from "../types.ts";
@@ -88,47 +85,57 @@ export async function userAgentProb(robotsResults: Record<Agent, boolean>, url: 
 }
 
 
-export function payPerCrawlDetected(agentResults: AgentsProbeResult[]): PayPerCrawlFinding {
+// No probes means robots.txt allowed no agent to be probed — nothing to judge.
+function noProbesSkip(criterionKey: string, url: string): Finding {
+    return { criterionKey, url, status: "skip", evidence: { reason: "no agents allowed to probe" } };
+}
+
+
+// 402 is a deliberate commercial choice, not a misconfiguration, so it warns.
+export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult[]): Finding {
+    if (agentResults.length === 0) return noProbesSkip("access.pay_per_crawl", url);
+
     const agents = agentResults
         .filter((result) => result.statusCode === 402)
         .map((result) => result.userAgent);
 
-    return { detected: agents.length > 0, agents };
+    return { criterionKey: "access.pay_per_crawl", url, status: agents.length > 0 ? "warn" : "pass", evidence: { agents } };
 }
 
 
-export function findPolicyDivergentAgents(agentResults: AgentsProbeResult[]): PolicyDivergenceFinding {
+export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbeResult[]): Finding {
+    if (agentResults.length === 0) return noProbesSkip("access.policy_divergence", url);
+
     const agents = agentResults
         .filter((result) => result.isChallenged || (result.statusCode ?? 0) >= 400)
         .map((result) => result.userAgent);
 
-    return { agents };
+    return { criterionKey: "access.policy_divergence", url, status: agents.length > 0 ? "fail" : "pass", evidence: { agents } };
 }
 
 
 export function findBaselineMismatchedAgents(
+    url: string,
     baselineRawHtml: string | null,
     agentProbs: AgentsProbeResult[],
-): BaselineMisMatch[] {
+): Finding {
+    if (agentProbs.length === 0) return noProbesSkip("access.baseline_mismatch", url);
 
     const baselineTextLength = extractText(baselineRawHtml).length;
 
-    if (baselineTextLength === 0) return [];
-
-    let mismatched: BaselineMisMatch[] = [];
-
-    for (const agent of agentProbs) {
-        const agentTextLength = extractText(agent.htmlContent).length;
-        const difference = Math.abs(agentTextLength - baselineTextLength) / baselineTextLength;
-
-        if (difference > BASELINE_MISMATCH_THRESHOLD) {
-            mismatched.push({
-                mismatchedAgents: agent.userAgent,
-                baselineTextLength,
-                agentTextLength,
-            });
-        }
+    if (baselineTextLength === 0) {
+        return { criterionKey: "access.baseline_mismatch", url, status: "skip", evidence: { reason: "baseline has no text" } };
     }
 
-    return mismatched
+    const agents = agentProbs
+        .map((agent) => ({ agent: agent.userAgent, agentTextLength: extractText(agent.htmlContent).length }))
+        .filter(({ agentTextLength }) =>
+            Math.abs(agentTextLength - baselineTextLength) / baselineTextLength > BASELINE_MISMATCH_THRESHOLD);
+
+    return {
+        criterionKey: "access.baseline_mismatch",
+        url,
+        status: agents.length > 0 ? "fail" : "pass",
+        evidence: { baselineTextLength, agents },
+    };
 }

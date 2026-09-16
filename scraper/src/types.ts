@@ -52,21 +52,6 @@ export interface AgentsProbeResult extends ProbeResult {
   userAgent: Agent;
 }
 
-export interface PayPerCrawlFinding {
-  detected: boolean;
-  agents: Agent[];
-}
-
-export interface PolicyDivergenceFinding {
-  agents: Agent[];
-}
-
-export interface BaselineMisMatch {
-  mismatchedAgents: Agent;
-  baselineTextLength: number;
-  agentTextLength: number;
-}
-
 export type FindingStatus = "pass" | "fail" | "warn" | "skip";
 
 // One check, one page, one outcome. Weight, severity, title and fix text are

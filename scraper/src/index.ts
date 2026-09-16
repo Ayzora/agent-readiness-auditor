@@ -5,7 +5,6 @@ import { runSectionBAudit } from "./section-b/index.ts";
 import {
   printCapture,
   printFindings,
-  printSectionA,
   printSectionAFailure,
 } from "./print-report.ts";
 
@@ -23,9 +22,9 @@ printCapture(snapshot, interactions);
 const soft404 = await soft404Probe(url);
 
 try {
-  printSectionA(await runSectionAAudit(url, snapshot));
+  printFindings("Section A — access", await runSectionAAudit(url, snapshot));
 } catch (error) {
   printSectionAFailure(error);
 }
 
-printFindings(runSectionBAudit(snapshot, interactions, soft404));
+printFindings("Section B — render", runSectionBAudit(snapshot, interactions, soft404));
