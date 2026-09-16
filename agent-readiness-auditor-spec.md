@@ -70,11 +70,11 @@ Seven dimensions, ordered by causal dependency — if a site fails A, nothing do
 ### C. Structure — is the content parseable?
 
 - Mozilla Readability: `extraction_ratio = len(readable_text) / len(all_dom_text)`. Low ratio \= agent burns tokens on chrome.  
-- Heading hierarchy: h1 count, skipped levels, headings used for styling  
-- Semantic landmarks (`main`, `nav`, `article`)  
-- **Tables:** real `<table>` vs. layout divs vs. images-of-tables; header cell association; colspan sanity  
-- Links: real `href` vs. JS click handlers; descriptive anchor text  
-- Markdown conversion noise ratio
+- Links: real `href` vs. JS click handlers — an agent cannot follow a click handler
+
+Both read the **raw** HTML: what most agents actually receive.
+
+*Cut on purpose:* heading hierarchy, landmarks, descriptive anchor text, tables (div grids, header cells, colspan, images-of-tables), and Markdown noise ratio. They are accessibility concerns a language model reads past, duplicate the extraction ratio, or cannot be detected reliably — div grids carry no signal in raw HTML without CSS, and the ones labelled `role="grid"` are mostly built by JavaScript and absent from raw HTML.
 
 ### D. Semantics — is meaning declared?
 

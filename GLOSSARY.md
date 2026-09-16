@@ -58,3 +58,9 @@ _Avoid_: blocker, hard fail
 The proportion of a page's text present without JavaScript, measured as raw
 text length over rendered text length.
 _Avoid_: JS ratio, render score
+
+**Extraction ratio**:
+The proportion of a page's raw-HTML text that Readability keeps as main
+content, measured as readable text length over all text length. Low means an
+agent spends most of its reading on menus, footers and other page chrome.
+_Avoid_: noise ratio, content ratio, readability score
