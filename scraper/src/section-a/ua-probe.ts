@@ -7,6 +7,7 @@ import {
 import { HttpCrawler, RequestQueue } from 'crawlee';
 import { type ProbeResult } from "../types.ts";
 import { extractText } from "../extract-text.ts";
+import { skipped } from "../utils.ts";
 
 
 const BASELINE_MISMATCH_THRESHOLD = 0.1;
@@ -85,15 +86,12 @@ export async function userAgentProb(robotsResults: Record<Agent, boolean>, url: 
 }
 
 
-// No probes means robots.txt allowed no agent to be probed — nothing to judge.
-function noProbesSkip(criterionKey: string, url: string): Finding {
-    return { criterionKey, url, status: "skip", evidence: { reason: "no agents allowed to probe" } };
-}
+const NO_PROBES = "no agents allowed to probe";
 
 
 // 402 is a deliberate commercial choice, not a misconfiguration, so it warns.
 export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult[]): Finding {
-    if (agentResults.length === 0) return noProbesSkip("access.pay_per_crawl", url);
+    if (agentResults.length === 0) return skipped("access.pay_per_crawl", url, NO_PROBES);
 
     const agents = agentResults
         .filter((result) => result.statusCode === 402)
@@ -104,7 +102,7 @@ export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult
 
 
 export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbeResult[]): Finding {
-    if (agentResults.length === 0) return noProbesSkip("access.policy_divergence", url);
+    if (agentResults.length === 0) return skipped("access.policy_divergence", url, NO_PROBES);
 
     const agents = agentResults
         .filter((result) => result.isChallenged || (result.statusCode ?? 0) >= 400)
@@ -119,12 +117,12 @@ export function findBaselineMismatchedAgents(
     baselineRawHtml: string | null,
     agentProbs: AgentsProbeResult[],
 ): Finding {
-    if (agentProbs.length === 0) return noProbesSkip("access.baseline_mismatch", url);
+    if (agentProbs.length === 0) return skipped("access.baseline_mismatch", url, NO_PROBES);
 
     const baselineTextLength = extractText(baselineRawHtml).length;
 
     if (baselineTextLength === 0) {
-        return { criterionKey: "access.baseline_mismatch", url, status: "skip", evidence: { reason: "baseline has no text" } };
+        return skipped("access.baseline_mismatch", url, "baseline has no text");
     }
 
     const agents = agentProbs

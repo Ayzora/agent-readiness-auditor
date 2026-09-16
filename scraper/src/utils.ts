@@ -1,4 +1,4 @@
-import type { Finding } from "../types.ts";
+import type { Finding } from "./types.ts";
 
 
 export function skipped(

@@ -1,5 +1,6 @@
 import { RobotsTxtFile } from "crawlee";
 import { type Finding, type SitemapFreshness } from "../types.ts";
+import { skipped } from "../utils.ts";
 
 const SITEMAP_STALE_DAYS = 90;
 
@@ -72,10 +73,8 @@ export function sitemapPresent(url: string, exists: boolean, urlsFromRobots: str
 export function sitemapFresh(url: string, exists: boolean, freshness: SitemapFreshness): Finding {
     const criterionKey = "access.sitemap_freshness";
 
-    if (!exists) return { criterionKey, url, status: "skip", evidence: { reason: "no sitemap" } };
-    if (freshness.daysSinceMostRecent === null) {
-        return { criterionKey, url, status: "skip", evidence: { reason: "no readable lastmod" } };
-    }
+    if (!exists) return skipped(criterionKey, url, "no sitemap");
+    if (freshness.daysSinceMostRecent === null) return skipped(criterionKey, url, "no readable lastmod");
 
     return {
         criterionKey,

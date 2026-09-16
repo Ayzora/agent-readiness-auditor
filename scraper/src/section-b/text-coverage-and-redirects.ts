@@ -5,7 +5,7 @@
 
 import type { Finding, FindingStatus, PageSnapshot } from "../types.ts";
 import { extractText } from "../extract-text.ts";
-import { skipped } from "./utils.ts";
+import { skipped } from "../utils.ts";
 
 // Asserted, not derived — expected to be wrong at first, and ready to lift into
 // criteria.yaml at build step 2. The principle underneath: could an agent

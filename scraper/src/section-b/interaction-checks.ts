@@ -4,7 +4,7 @@
 
 import { parseHTML } from "linkedom";
 import type { Finding, InteractionCapture, PageSnapshot } from "../types.ts";
-import { percentage, skipped } from "./utils.ts";
+import { percentage, skipped } from "../utils.ts";
 
 // Asserted, not derived. They lift into criteria.yaml at build step 2.
 const CONTENT_GROWTH_FAIL_PERCENT = 10;

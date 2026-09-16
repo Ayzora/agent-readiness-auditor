@@ -3,7 +3,7 @@
 
 import type { Finding, PageSnapshot, Soft404Probe } from "../types.ts";
 import { extractText } from "../extract-text.ts";
-import { skipped } from "./utils.ts";
+import { skipped } from "../utils.ts";
 
 const SIMILARITY_FAIL = 0.8;
 

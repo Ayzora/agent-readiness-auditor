@@ -4,7 +4,7 @@
 import { parseHTML } from "linkedom";
 import { extractText } from "../extract-text.ts";
 import type { Finding, InteractionCapture, PageSnapshot } from "../types.ts";
-import { percentage, skipped } from "./utils.ts";
+import { percentage, skipped } from "../utils.ts";
 
 // Every threshold here is asserted, not derived, and expected to be wrong at
 // first. They lift into criteria.yaml at build step 2.
