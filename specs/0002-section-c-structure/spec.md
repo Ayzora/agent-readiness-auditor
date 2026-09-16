@@ -106,7 +106,7 @@ Running `pnpm scraper <url>` prints a Section C block after Section B. Section C
 35. Required cases: [L6]
     - extraction ratio: content-heavy article page → `pass`; chrome-heavy page → `fail`; `rawHtml: null` → `skip` with `"raw fetch failed"`; raw HTML with no text → `fail` with `ratio: null`.
     - link navigation: `<a href="/pricing">` counted followable; `<a href="#">`, `<a href="javascript:void(0)">`, `<span role="link">` and `<div onclick="location.href='/x'">` counted unfollowable; `href="#pricing"` and a plain `<button>` ignored; a page with no followable links → `fail`; a share above 30% → `fail`; above 10% → `warn`; `rawHtml: null` → `skip`; `examples` capped at 5.
-36. Tests cover Section C only. [L6]
+36. Test cases cover Section C only. The setup — the `test` script and a shared helper that builds a `PageSnapshot` from an HTML string — is not Section C-specific, so later sections' tests reuse it. [L6]
 
 ## Technical Decisions
 
@@ -140,3 +140,7 @@ Manual verification: run `pnpm scraper <url>` against a content page (e.g. a new
 
 - **Minimum link count** [L7]. Should `structure.link_navigation` require a minimum number of link-like elements before judging by percentage? Recommended: `min_links: 5` in `criteria.yaml`; below it, `pass` if at least one link is followable and `fail` if none is; evidence includes `minLinks`. Until decided, Requirement 19 applies at any count.
 - **Starting weights and report text.** Requirement 24's values are first guesses to be tuned once real audits exist.
+
+## Follow-Ups
+
+- Tests for Sections A and B, reusing this Spec's test setup. Section B's checks are pure over a snapshot; Section A's also need fake probe results (agent responses, robots.txt data).
