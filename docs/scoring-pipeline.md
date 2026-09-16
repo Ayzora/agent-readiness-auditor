@@ -341,9 +341,16 @@ render.text_coverage           render.hidden_but_present
 render.empty_rendered_page     render.images_missing_alt
 render.js_redirect             render.canvas_content
 render.halves_diverged         render.iframe_primary_content
-render.homepage_redirect
-render.long_redirect_chain
+render.homepage_redirect       render.content_behind_interaction
+render.long_redirect_chain     render.infinite_scroll
+render.soft_404                render.consent_wall
 ```
+
+Fourteen keys, of which ten are emitted for every page. The four redirect
+checks — `js_redirect`, `halves_diverged`, `homepage_redirect`,
+`long_redirect_chain` — stay silent unless their shape fires, so a page with
+no redirect trouble contributes none of them. A criterion with no finding for
+a page is absent from scoring for that page, exactly as a `skip` is.
 
 Section A does not participate yet. It returns bespoke shapes — `RobotsAudit`,
 `PayPerCrawlFinding`, `BaselineMisMatch` — with no `criterionKey` anywhere in

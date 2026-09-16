@@ -11,40 +11,95 @@ crawl strategy, build order — lives in `agent-readiness-auditor-spec.md` at
 the repo root. Read it before making architectural decisions; this file only
 covers what exists today and the structural rules the spec insists on.
 
-The codebase is currently at the earliest stage of that spec's build order: a
-`scraper` package with Section A (Access — "can an agent get the bytes?")
-implemented as fetch probes plus a handful of Phase 2 check functions, run
-from a CLI against one hardcoded URL, and a `web` package that is still an
-unmodified `create-next-app` scaffold (plus one sample route proving routing
-works). There is no crawler, no scoring engine, no database, and no
-`criteria.yaml` yet — Section A's checks are hand-written functions, not
-yet driven by a rulebook.
+The codebase is at the early stage of that spec's build order: a `scraper`
+package with Section A (Access — "can an agent get the bytes?") and Section B
+(Render — "does the content exist without JavaScript?") implemented, run from
+a CLI against one URL given as an argument, and a `web` package that is still
+an unmodified `create-next-app` scaffold (plus one sample route proving
+routing works). There is no crawler, no scoring engine, no database, and no
+`criteria.yaml` yet — the checks are hand-written functions with thresholds as
+named constants, not yet driven by a rulebook. `docs/scoring-pipeline.md`
+records the agreed shape of the rulebook and scorer before either is built.
 
-### Section A (done) — reference for building Section B
+### Two section shapes, on purpose
 
-`scraper/src/section-a/` holds every Section A fetch probe and check
-function, with `section-a/index.ts` as the section's single public entry
-point: it exports `runSectionAAudit(url)`, which runs all of Section A's
-probes and checks and returns one plain object. The root
-`scraper/src/index.ts` never reaches into a section's internal files — it
-only imports that one aggregating function per section and calls it.
+Sections do not all look alike, and the difference is a decision rather than
+drift. What varies is the **scope** of the thing being fetched:
 
-When Section B is built, follow the same shape: a `scraper/src/section-b/`
-folder, Phase 1 fetch probes and Phase 2 check functions as separate files
-inside it, and a `section-b/index.ts` exporting one `runSectionBAudit(url)`
-that the root `index.ts` calls alongside `runSectionAAudit`.
+- **Site-scope sections** (Section A) fetch resources that exist once per site
+  — robots.txt, the sitemap, a rate-limit ramp. Nothing else can share those
+  bytes, so the section owns its own Phase 1 probes and exports
+  `runSectionAAudit(url, snapshot)`. `runSectionXAudit(url)` is the shape for
+  site-scope work only.
+- **Page-scope sections** (Section B, and C–F when they land) all need the
+  identical raw-and-rendered pair for a page. That capture therefore lives
+  **outside** every section folder — `scraper/src/page-snapshot.ts` and
+  `scraper/src/interaction-probe.ts` — and the section receives it as an
+  argument. Putting the capture in `section-b/` would force Section D to
+  import from `section-b/`, exactly the cross-section reach forbidden below.
+
+So `scraper/src/section-b/` contains **only pure check functions and no
+network code whatsoever** — not the probes-plus-checks mix `section-a/` has.
+
+`runSectionBAudit(snapshot, interactions, soft404Probe)` is **synchronous on
+purpose**: a function that cannot `await` cannot fetch, so the signature
+enforces the Phase 1 / Phase 2 rule below rather than a comment requesting it.
+Making it `async` would silently permit I/O back into Phase 2 and destroy the
+test seam — a future test constructs a `PageSnapshot` literal and asserts on
+the returned findings, with no network and no browser. Do not change it.
+
+`scraper/src/soft-404-probe.ts` sits beside the capture layer for the same
+reason in the other direction: it is site-scope Phase 1 work, so it cannot
+live in `section-b/`, but it is not Section A's either.
+
+The rule that has not changed: the root `scraper/src/index.ts` never reaches
+into a section's internal files. It imports one aggregating function per
+section, performs the page capture **once**, and hands the result to both.
+
+### Section A
+
+`scraper/src/section-a/` holds every Section A fetch probe and check function,
+with `section-a/index.ts` as the section's single public entry point: it
+exports `runSectionAAudit(url, snapshot)` — the URL for the site-scope probes,
+the snapshot's **raw** half as the baseline the UA probes are compared against.
 
 Section A's fetch probes (`section-a/ua-probe.ts`, `robots-audit.ts`,
 `rate-limit-probe.ts`, `sitemap.ts`) and checks
 (`payPerCrawlDetected`, `findPolicyDivergentAgents`,
 `findBaselineMismatchedAgents`, all in `ua-probe.ts`) cover: per-agent
-robots.txt allow/deny, a live UA probe per allowed agent, a `humanCrawler`
-baseline fetch, 402/pay-per-crawl detection, policy-vs-reality divergence
-(robots.txt says allow but the agent got challenged/blocked), baseline vs.
-agent HTML mismatch, the gated rate-limit probe, and sitemap
-presence/freshness. Not yet done, deliberately deferred: latency capture
-per UA probe, and sitemap coverage-gap-vs-crawl (blocked on the crawler,
-which doesn't exist yet).
+robots.txt allow/deny, a live UA probe per allowed agent, 402/pay-per-crawl
+detection, policy-vs-reality divergence (robots.txt says allow but the agent
+got challenged/blocked), baseline vs. agent text-length mismatch, the
+rate-limit probe, and sitemap presence/freshness. Not yet done, deliberately
+deferred: latency capture per UA probe, and sitemap coverage-gap-vs-crawl
+(blocked on the crawler, which doesn't exist yet).
+
+Section A's probes predate the never-throw discipline the capture layer
+follows: on an unreachable host `gotScraping` rejects out of
+`rate-limit-probe.ts`, so the root `index.ts` contains the call in a
+`try`/`catch` rather than letting a dead page cost the run its Section B
+findings. Fixing that in the probes is deferred along with migrating them off
+Crawlee — see the note in the fetch/analysis split below.
+
+### Section B
+
+`scraper/src/section-b/` holds only pure checks over a captured
+`PageSnapshot`: `text-coverage-and-redirects.ts`, `static-dom-checks.ts`,
+`interaction-checks.ts` and `soft-404.ts`, aggregated by `section-b/index.ts`.
+Unlike Section A, every check returns a `Finding` — `{ criterionKey, url,
+status, evidence }`, with `status` one of `pass`/`fail`/`warn`/`skip`. Weight,
+severity, title and fix text are deliberately absent: those come from the
+rulebook, so the checks are not blocked on `criteria.yaml` not existing.
+
+`skip` means the check **could not run**, and is excluded from scoring
+entirely — not counted as a pass, which inflates, and not as a fail, which
+defames. Every `skip` carries a distinct `reason` in its evidence.
+
+Criterion keys use the **dimension**, never the section folder:
+`render.text_coverage`, not `section-b.*`. See `GLOSSARY.md`.
+
+Section B is the first code written to the `Finding` contract; Section A still
+returns bespoke shapes and converts at build step 2 when the rulebook lands.
 
 ## Prerequisites
 
@@ -63,7 +118,7 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Runs Section A's full audit (`runSectionAAudit`) against one URL |
+| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Section B's findings against it |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 There is no test suite yet.
@@ -124,6 +179,19 @@ Phase-1-only site-level probes for this reason; the check functions in
 `section-a/ua-probe.ts` (`payPerCrawlDetected`, `findPolicyDivergentAgents`,
 `findBaselineMismatchedAgents`) are the Phase-2 pure functions that consume
 their output.
+
+Page-scope Phase 1 lives in `page-snapshot.ts` and `interaction-probe.ts`, and
+site-scope Phase 1 that is nobody's section in `soft-404-probe.ts` — all three
+outside the section folders, because Sections C–F need the same bytes. Every
+Phase 1 module here degrades rather than throws: fields go null, an `error`
+string is populated, and the checks reading them return `skip`. One dead page
+must not abort an audit, and at 40 pages it must not.
+
+Section A's remaining probes are **deliberately not migrated** to the direct
+`got-scraping`/Playwright style, and not yet brought under the never-throw
+rule. Refactoring working network code with no test suite is a poor trade; now
+that Section B exists, that refactor is an informed decision to take
+separately rather than a guess.
 
 ### Planned data model (not yet implemented)
 
