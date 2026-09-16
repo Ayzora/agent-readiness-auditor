@@ -1,0 +1,247 @@
+# The rulebook: what each criterion is worth and what to tell the site owner.
+# Checks decide pass/warn/fail; this file only prices and explains the result.
+# Every `key` must match a criterionKey a check emits, exactly.
+#
+# weight    how much it counts toward its dimension's score (1–10)
+# severity  critical | high | medium | low
+# effort    S | M | L — how much work the fix is, used for ROI sorting
+
+version: v0.1.0
+
+criteria:
+  # --- access (Section A) ----------------------------------------------------
+
+  - key: access.robots_allows_agents
+    dimension: access
+    scope: site
+    weight: 10
+    severity: critical
+    effort: S
+    title: "robots.txt blocks AI agents"
+    why: >
+      Agents that respect robots.txt will not read a page it disallows, so a
+      blocked agent cannot answer questions about your site.
+    fix: "Add Allow rules in robots.txt for the agents you want to reach you"
+
+  - key: access.policy_divergence
+    dimension: access
+    scope: page
+    weight: 10
+    severity: critical
+    effort: S
+    title: "robots.txt allows agents that your server then blocks"
+    why: >
+      robots.txt says these agents are welcome, but the page answered them
+      with a challenge or an error. Usually a bot-protection setting nobody
+      compared against robots.txt.
+    fix: "Allowlist these agents in your CDN or bot-protection settings"
+
+  - key: access.pay_per_crawl
+    dimension: access
+    scope: page
+    weight: 3
+    severity: low
+    effort: S
+    title: "Agents are asked to pay to read this page"
+    why: >
+      A 402 response is a deliberate commercial choice, not a mistake. Agents
+      that do not pay will not see the content.
+    fix: "Confirm pay-per-crawl is intended for these agents"
+
+  - key: access.baseline_mismatch
+    dimension: access
+    scope: page
+    weight: 7
+    severity: high
+    effort: M
+    title: "Agents see different content from a normal visitor"
+    why: >
+      The text an agent received differs noticeably from what a browser
+      received, so agents may be describing a page that is not really yours.
+    fix: "Serve agents the same content as other visitors"
+
+  - key: access.rate_limit
+    dimension: access
+    scope: site
+    weight: 3
+    severity: low
+    effort: S
+    title: "The site rate-limits at a low request rate"
+    why: >
+      Agents that fetch several pages to answer one question can be cut off
+      before they finish.
+    fix: "Raise the rate limit for verified agent traffic"
+
+  - key: access.sitemap_present
+    dimension: access
+    scope: site
+    weight: 4
+    severity: medium
+    effort: S
+    title: "No sitemap, or it is not listed in robots.txt"
+    why: "A sitemap is how agents find pages that are not linked from the homepage."
+    fix: "Publish /sitemap.xml and reference it with a Sitemap: line in robots.txt"
+
+  - key: access.sitemap_freshness
+    dimension: access
+    scope: site
+    weight: 2
+    severity: low
+    effort: S
+    title: "Sitemap has not been updated recently"
+    why: "Stale lastmod dates tell agents nothing has changed, so they may skip new content."
+    fix: "Regenerate the sitemap with accurate lastmod dates when pages change"
+
+  # --- render (Section B) ----------------------------------------------------
+
+  - key: render.text_coverage
+    dimension: render
+    scope: page
+    weight: 9
+    severity: critical
+    effort: L
+    title: "Content requires JavaScript to appear"
+    why: >
+      Many agents fetch raw HTML without executing JavaScript. If most of your
+      text only appears after render, they see an empty page.
+    fix: "Server-render primary content, or provide a static fallback"
+
+  - key: render.empty_rendered_page
+    dimension: render
+    scope: page
+    weight: 8
+    severity: critical
+    effort: M
+    title: "Page has almost no text even after JavaScript runs"
+    why: "There is nothing for any agent to read, with or without a browser."
+    fix: "Check the page loads correctly and is not blocked by an error or login"
+
+  - key: render.js_redirect
+    dimension: render
+    scope: page
+    weight: 6
+    severity: high
+    effort: S
+    title: "Page redirects with JavaScript"
+    why: >
+      Agents that do not run JavaScript stay on the original URL and never
+      reach the page you meant to send them to.
+    fix: "Use a server-side 301 or 302 redirect instead"
+
+  - key: render.halves_diverged
+    dimension: render
+    scope: page
+    weight: 6
+    severity: high
+    effort: M
+    title: "Agents with and without JavaScript end up on different pages"
+    why: "Two agents asking about the same URL will read different content."
+    fix: "Make the server redirect and the browser land on the same URL"
+
+  - key: render.homepage_redirect
+    dimension: render
+    scope: page
+    weight: 5
+    severity: medium
+    effort: S
+    title: "Page redirects to the homepage"
+    why: "The page an agent asked for is replaced with a generic one."
+    fix: "Return a real 404, or redirect to the closest matching page"
+
+  - key: render.long_redirect_chain
+    dimension: render
+    scope: page
+    weight: 2
+    severity: low
+    effort: S
+    title: "Three or more redirect hops before the page"
+    why: "Each hop costs latency and a chance for an agent to give up."
+    fix: "Collapse the chain to a single hop"
+
+  - key: render.soft_404
+    dimension: render
+    scope: page
+    weight: 6
+    severity: high
+    effort: S
+    title: "Page looks like the site's error page but returns 200"
+    why: "Agents trust the status code and treat the error page as real content."
+    fix: "Return a 404 status for pages that do not exist"
+
+  - key: render.hidden_but_present
+    dimension: render
+    scope: page
+    weight: 2
+    severity: low
+    effort: S
+    title: "A large share of the page's text is hidden"
+    why: >
+      Agents that read the HTML see hidden text as normal content, so what they
+      summarise may differ from what visitors see.
+    fix: "Remove hidden text that is not meant to be read"
+
+  - key: render.images_missing_alt
+    dimension: render
+    scope: page
+    weight: 4
+    severity: medium
+    effort: S
+    title: "Images are missing alt text"
+    why: "Agents cannot see images; alt text is the only description they get."
+    fix: "Add descriptive alt attributes to meaningful images"
+
+  - key: render.canvas_content
+    dimension: render
+    scope: page
+    weight: 3
+    severity: medium
+    effort: M
+    title: "Main content is drawn in a canvas"
+    why: "Text drawn in a <canvas> is pixels, not text, and agents cannot read it."
+    fix: "Provide the same content as HTML text alongside the canvas"
+
+  - key: render.iframe_primary_content
+    dimension: render
+    scope: page
+    weight: 4
+    severity: medium
+    effort: M
+    title: "Main content lives inside an iframe"
+    why: "Many agents do not follow iframes, so they miss the content inside."
+    fix: "Put primary content directly in the page's HTML"
+
+  - key: render.content_behind_interaction
+    dimension: render
+    scope: page
+    weight: 5
+    severity: medium
+    effort: M
+    title: "Content only appears after clicking"
+    why: "Agents rarely click tabs, accordions or 'load more' buttons."
+    fix: "Include the content in the HTML and use CSS or <details> to collapse it"
+
+  - key: render.infinite_scroll
+    dimension: render
+    scope: page
+    weight: 4
+    severity: medium
+    effort: M
+    title: "Content loads on scroll with no page links"
+    why: "Agents do not scroll, so everything past the first batch is unreachable."
+    fix: "Add paginated URLs (?page=2) linked from the page"
+
+  - key: render.consent_wall
+    dimension: render
+    scope: page
+    weight: 6
+    severity: high
+    effort: M
+    title: "Content is hidden until cookies are accepted"
+    why: "Agents do not click consent banners, so they only see the banner."
+    fix: "Render page content behind the banner, not after it is accepted"
+
+# A gate caps the total score when its criterion fails, whatever else passed.
+gates:
+  - criterion: access.robots_allows_agents
+    cap: 20
+    reason: "robots.txt blocks every AI agent"
