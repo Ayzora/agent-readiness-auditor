@@ -3,6 +3,7 @@ import {
   type InteractionCapture,
   type Finding,
   type Soft404Probe,
+  type Rulebook,
 } from "../types.ts";
 import {
   getEmptyRenderedPage as emptyRenderedPage,
@@ -26,22 +27,19 @@ export function runSectionBAudit(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
   soft404Probe: Soft404Probe | null,
+  rulebook: Rulebook,
 ): Finding[] {
   return [
-    // work item 4
-    textCoverage(snapshot),
+    textCoverage(snapshot, rulebook),
     emptyRenderedPage(snapshot),
-    ...redirectFindings(snapshot),
-    // work item 5
-    hiddenButPresent(snapshot, interactions),
-    missingImagesAlt(snapshot),
-    canvasContent(snapshot),
-    iframePrimaryContent(snapshot),
-    // work item 6
-    contentBehindInteraction(snapshot, interactions),
-    infiniteScroll(snapshot, interactions),
-    consentWall(snapshot, interactions),
-    // work item 7
-    soft404(snapshot, soft404Probe),
+    ...redirectFindings(snapshot, rulebook),
+    hiddenButPresent(snapshot, interactions, rulebook),
+    missingImagesAlt(snapshot, rulebook),
+    canvasContent(snapshot, rulebook),
+    iframePrimaryContent(snapshot, rulebook),
+    contentBehindInteraction(snapshot, interactions, rulebook),
+    infiniteScroll(snapshot, interactions, rulebook),
+    consentWall(snapshot, interactions, rulebook),
+    soft404(snapshot, soft404Probe, rulebook),
   ];
 }

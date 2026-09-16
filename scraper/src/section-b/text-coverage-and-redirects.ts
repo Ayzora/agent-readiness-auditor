@@ -1,28 +1,13 @@
-// Work item 04 — text coverage and redirect findings.
-//
-// Pure checks over a captured PageSnapshot. No network code of any kind
-// belongs in this folder: every function here is synchronous by construction.
-
-import type { Finding, FindingStatus, PageSnapshot } from "../types.ts";
+import type { Finding, FindingStatus, PageSnapshot, Rulebook } from "../types.ts";
 import { extractText } from "../extract-text.ts";
-import { skipped } from "../utils.ts";
-
-// Asserted, not derived — expected to be wrong at first, and ready to lift into
-// criteria.yaml at build step 2. The principle underneath: could an agent
-// reading only HTML still answer a basic question about this page?
-const TEXT_COVERAGE_FAIL_THRESHOLD = 0.3;
-const TEXT_COVERAGE_PASS_THRESHOLD = 0.6;
-const LONG_CHAIN = 3;
+import { skipped, thresholdsFor } from "../utils.ts";
 
 const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);
 
-// ---------------------------------------------------------------------------
-// Text coverage
-// ---------------------------------------------------------------------------
-
-export function getTextCoverage(snapshot: PageSnapshot): Finding {
+export function getTextCoverage(snapshot: PageSnapshot, rulebook: Rulebook): Finding {
   let status: FindingStatus;
   const CRITERION = "render.text_coverage";
+  const { fail, warn } = thresholdsFor(rulebook, CRITERION);
 
   const rawText = extractText(snapshot.rawHtml);
   const renderedText = extractText(snapshot.renderedHtml);
@@ -42,9 +27,9 @@ export function getTextCoverage(snapshot: PageSnapshot): Finding {
   const unclampedRatio = rawChars / renderedChars;
   const ratio = Clamp(unclampedRatio);
 
-  if (ratio < TEXT_COVERAGE_FAIL_THRESHOLD) {
+  if (ratio < fail) {
     status = "fail";
-  } else if (ratio < TEXT_COVERAGE_PASS_THRESHOLD) {
+  } else if (ratio < warn) {
     status = "warn";
   } else {
     status = "pass";
@@ -89,16 +74,9 @@ export function getEmptyRenderedPage(snapshot: PageSnapshot): Finding {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Redirects
-//
-// Most redirects are healthy and universal — http→https, trailing slashes,
-// locale prefixes — so these checks stay silent unless one of four named
-// shapes fires. A plain single-hop redirect emits nothing.
-// ---------------------------------------------------------------------------
+// Redirect checks stay silent unless their shape fires; a plain redirect emits nothing.
 
-// URL comparison normalises the trailing slash and ignores query and fragment,
-// trading a rare false negative for far fewer false positives.
+// Ignores the trailing slash, query and fragment.
 function pathOf(url: string): string | null {
   try {
     const path = new URL(url).pathname.replace(/\/+$/, "");
@@ -126,8 +104,7 @@ function javascriptRedirect(snapshot: PageSnapshot): Finding | null {
   const { resolvedUrl, browserFinalUrl } = snapshot;
   if (resolvedUrl === null || browserFinalUrl === null) return null;
 
-  // A server redirect means the divergence is not purely client-side; that case
-  // belongs to halvesDiverged.
+  // With a server redirect too, it is halvesDiverged's case.
   if (snapshot.redirectChain.length > 0) return null;
   if (sameAddress(resolvedUrl, browserFinalUrl)) return null;
 
@@ -186,10 +163,11 @@ function homepageRedirect(snapshot: PageSnapshot): Finding | null {
   };
 }
 
-function longRedirectChain(snapshot: PageSnapshot): Finding | null {
+function longRedirectChain(snapshot: PageSnapshot, rulebook: Rulebook): Finding | null {
+  const { warn } = thresholdsFor(rulebook, "render.long_redirect_chain");
   const redirectChainLength = snapshot.redirectChain.length;
 
-  if (redirectChainLength >= LONG_CHAIN)
+  if (redirectChainLength >= warn)
     return {
       criterionKey: "render.long_redirect_chain",
       url: snapshot.url,
@@ -203,11 +181,11 @@ function longRedirectChain(snapshot: PageSnapshot): Finding | null {
   return null;
 }
 
-export function redirectFindings(snapshot: PageSnapshot): Finding[] {
+export function redirectFindings(snapshot: PageSnapshot, rulebook: Rulebook): Finding[] {
   return [
     javascriptRedirect(snapshot),
     halvesDiverged(snapshot),
     homepageRedirect(snapshot),
-    longRedirectChain(snapshot),
+    longRedirectChain(snapshot, rulebook),
   ].filter((finding): finding is Finding => finding !== null);
 }

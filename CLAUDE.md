@@ -16,10 +16,23 @@ package with Section A (Access — "can an agent get the bytes?") and Section B
 (Render — "does the content exist without JavaScript?") implemented, run from
 a CLI against one URL given as an argument, and a `web` package that is still
 an unmodified `create-next-app` scaffold (plus one sample route proving
-routing works). There is no crawler, no scoring engine, no database, and no
-`criteria.yaml` yet — the checks are hand-written functions with thresholds as
-named constants, not yet driven by a rulebook. `docs/scoring-pipeline.md`
-records the agreed shape of the rulebook and scorer before either is built.
+routing works). There is no crawler, no scoring engine and no database. The
+rulebook, `scraper/criteria.yaml`, exists and holds every criterion's weight,
+report text and thresholds, but nothing scores with it yet.
+`docs/scoring-pipeline.md` records the agreed shape of the scorer before it is
+built.
+
+### Thresholds come from the rulebook
+
+Checks decide `pass`/`warn`/`fail` themselves, but never hold the cutoff
+numbers: `index.ts` loads `criteria.yaml` once (`rulebook.ts`) and passes it
+down, and each check reads its own numbers at the top with
+`const { fail, warn } = thresholdsFor(rulebook, CRITERION)` from `utils.ts`.
+Names are `fail`/`warn` where they fit and descriptive snake_case otherwise
+(`min_text_chars`). A missing key or name throws, so a typo cannot silently
+compare against `undefined`. Values that are facts rather than judgement calls
+— the HTML spec's 300x150 default embed size, the rate-limit ramp — stay in
+code.
 
 ### Two section shapes, on purpose
 
@@ -29,7 +42,7 @@ drift. What varies is the **scope** of the thing being fetched:
 - **Site-scope sections** (Section A) fetch resources that exist once per site
   — robots.txt, the sitemap, a rate-limit ramp. Nothing else can share those
   bytes, so the section owns its own Phase 1 probes and exports
-  `runSectionAAudit(url, snapshot)`. `runSectionXAudit(url)` is the shape for
+  `runSectionAAudit(url, snapshot, rulebook)`. `runSectionXAudit(url)` is the shape for
   site-scope work only.
 - **Page-scope sections** (Section B, and C–F when they land) all need the
   identical raw-and-rendered pair for a page. That capture therefore lives
@@ -41,11 +54,12 @@ drift. What varies is the **scope** of the thing being fetched:
 So `scraper/src/section-b/` contains **only pure check functions and no
 network code whatsoever** — not the probes-plus-checks mix `section-a/` has.
 
-`runSectionBAudit(snapshot, interactions, soft404Probe)` is **synchronous on
+`runSectionBAudit(snapshot, interactions, soft404Probe, rulebook)` is **synchronous on
 purpose**: a function that cannot `await` cannot fetch, so the signature
 enforces the Phase 1 / Phase 2 rule below rather than a comment requesting it.
 Making it `async` would silently permit I/O back into Phase 2 and destroy the
-test seam — a future test constructs a `PageSnapshot` literal and asserts on
+test seam — a future test constructs a `PageSnapshot` literal and a rulebook
+and asserts on
 the returned findings, with no network and no browser. Do not change it.
 
 `scraper/src/soft-404-probe.ts` sits beside the capture layer for the same
@@ -60,7 +74,7 @@ section, performs the page capture **once**, and hands the result to both.
 
 `scraper/src/section-a/` holds every Section A fetch probe and check function,
 with `section-a/index.ts` as the section's single public entry point: it
-exports `runSectionAAudit(url, snapshot)` — the URL for the site-scope probes,
+exports `runSectionAAudit(url, snapshot, rulebook)` — the URL for the site-scope probes,
 the snapshot's **raw** half as the baseline the UA probes are compared against.
 
 Section A's fetch probes (`section-a/ua-probe.ts`, `robots-audit.ts`,
@@ -86,10 +100,10 @@ Crawlee — see the note in the fetch/analysis split below.
 `scraper/src/section-b/` holds only pure checks over a captured
 `PageSnapshot`: `text-coverage-and-redirects.ts`, `static-dom-checks.ts`,
 `interaction-checks.ts` and `soft-404.ts`, aggregated by `section-b/index.ts`.
-Unlike Section A, every check returns a `Finding` — `{ criterionKey, url,
+Like Section A, every check returns a `Finding` — `{ criterionKey, url,
 status, evidence }`, with `status` one of `pass`/`fail`/`warn`/`skip`. Weight,
-severity, title and fix text are deliberately absent: those come from the
-rulebook, so the checks are not blocked on `criteria.yaml` not existing.
+severity, title and fix text are deliberately absent: those are looked up in
+the rulebook at scoring time, never copied onto a finding.
 
 `skip` means the check **could not run**, and is excluded from scoring
 entirely — not counted as a pass, which inflates, and not as a fail, which

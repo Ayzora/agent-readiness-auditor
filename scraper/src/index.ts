@@ -2,6 +2,7 @@ import { capturePageWithInteractions } from "./interaction-probe.ts";
 import { soft404Probe } from "./soft-404-probe.ts";
 import { runSectionAAudit } from "./section-a/index.ts";
 import { runSectionBAudit } from "./section-b/index.ts";
+import { loadRulebook } from "./rulebook.ts";
 import {
   printCapture,
   printFindings,
@@ -15,6 +16,8 @@ if (!url) {
   process.exit(1);
 }
 
+const rulebook = loadRulebook();
+
 const { snapshot, interactions } = await capturePageWithInteractions(url);
 
 printCapture(snapshot, interactions);
@@ -22,9 +25,9 @@ printCapture(snapshot, interactions);
 const soft404 = await soft404Probe(url);
 
 try {
-  printFindings("Section A — access", await runSectionAAudit(url, snapshot));
+  printFindings("Section A — access", await runSectionAAudit(url, snapshot, rulebook));
 } catch (error) {
   printSectionAFailure(error);
 }
 
-printFindings("Section B — render", runSectionBAudit(snapshot, interactions, soft404));
+printFindings("Section B — render", runSectionBAudit(snapshot, interactions, soft404, rulebook));

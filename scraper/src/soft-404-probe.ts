@@ -5,10 +5,7 @@ import type { Soft404Probe } from "./types.ts";
 
 const PROBE_TIMEOUT_MS = 15_000;
 
-// Site-scope Phase 1: ask the site to show us its error page once, so Section B
-// can compare real pages against it rather than grep titles for "not found".
-// Sends the same user agent as the raw half of capturePage, so the fingerprint
-// and the pages judged against it are the same kind of response.
+// Same user agent as capturePage's raw half, so fingerprint and pages compare like for like.
 export async function soft404Probe(siteUrl: string): Promise<Soft404Probe> {
   const slug = `zzz-does-not-exist-${randomSuffix()}`;
   const probeUrl = new URL(`/${slug}`, siteUrl).href;
@@ -39,8 +36,7 @@ export async function soft404Probe(siteUrl: string): Promise<Soft404Probe> {
   }
 }
 
-// The slug is stripped: an error page that echoes the requested path back would
-// otherwise carry a token no real page could ever match.
+// Strip the slug, which an error page may echo back.
 function fingerprintOf(html: string, slug: string): string {
   return extractText(html).replaceAll(slug, " ").replace(/\s+/g, " ").trim();
 }

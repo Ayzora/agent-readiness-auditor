@@ -1,7 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 
 export const AGENTS = [
-  // User-initiated agents
   "ChatGPT-User",
   "Claude-User",
   "Perplexity-User",
@@ -9,7 +8,6 @@ export const AGENTS = [
   "Meta-ExternalFetcher",
   "Amzn-User",
   "Google-Agent",
-  // Index / search bots
   "OAI-SearchBot",
   "Claude-SearchBot",
   "xSeek",
@@ -33,13 +31,10 @@ export interface RateLimitProbe {
   limitFoundAt: number | null;
 }
 
-
-
   export interface SitemapFreshness {
     mostRecentLastmod: string | null;
     daysSinceMostRecent: number | null;
 }
-
 
 export interface ProbeResult{
   htmlContent: string | null;
@@ -54,20 +49,38 @@ export interface AgentsProbeResult extends ProbeResult {
 
 export type FindingStatus = "pass" | "fail" | "warn" | "skip";
 
-// One check, one page, one outcome. Weight, severity, title and fix text are
-// deliberately absent: those come from the rulebook (criteria.yaml), so checks
-// are not blocked on it existing. `skip` means the check could not run and is
-// excluded from scoring entirely — not a pass, which inflates, and not a fail,
-// which defames.
+// `skip` means the check could not run; it is excluded from scoring, not counted as pass or fail.
 export interface Finding {
   criterionKey: string;
   url: string;
   status: FindingStatus;
-  // The measured values the verdict rests on, so a report can state "812
-  // characters without JavaScript, 9,440 with" rather than only "fail".
   evidence: Record<string, unknown>;
 }
 
+export interface Criterion {
+  key: string;
+  dimension: string;
+  scope: "page" | "site";
+  weight: number;
+  severity: "critical" | "high" | "medium" | "low";
+  effort: "S" | "M" | "L";
+  title: string;
+  why: string;
+  fix: string;
+  thresholds?: Record<string, number>;
+}
+
+export interface Gate {
+  criterion: string;
+  cap: number;
+  reason: string;
+}
+
+export interface Rulebook {
+  version: string;
+  criteria: Criterion[];
+  gates: Gate[];
+}
 
 export type RenderSettled = "networkidle" | "load-timeout";
 
@@ -87,9 +100,6 @@ export interface PageSnapshot {
   error: string | null;
 }
 
-// Measured with zero clicks: the text CSS leaves visible against all text in
-// the DOM, from one walk of the live page so both sides are extracted the same
-// way. A text-parsing agent reads the hidden part perfectly well.
 export interface HiddenTextCapture {
   visibleChars: number;
   domChars: number;
@@ -118,10 +128,7 @@ export interface ScrollCapture {
   charsAfter: number;
 }
 
-// What the allowlisted interactions revealed on the snapshot's page. Character
-// counts are extractText over the live DOM, comparable with the snapshot's
-// domText. A step is null when the budget ran out before it could start — the
-// checks reading it skip rather than guess.
+// A step is null when the time budget ran out before it started.
 export interface InteractionCapture {
   hidden: HiddenTextCapture;
   consent: ConsentCapture | null;
@@ -131,9 +138,7 @@ export interface InteractionCapture {
   elapsedMs: number;
 }
 
-// Site-scope: what one request to a URL that cannot exist came back as. A 200
-// means the site soft-404s, and `fingerprint` is then the shape its error page
-// takes, for real pages to be compared against.
+// A 200 means the site soft-404s; `fingerprint` is its error page's text.
 export interface Soft404Probe {
   probeUrl: string;
   statusCode: number | null;

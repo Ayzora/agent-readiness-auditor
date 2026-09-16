@@ -8,7 +8,6 @@ export async function robotsAudit(siteUrl: string): Promise<RobotsAudit> {
   return auditAgents(root, robots);
 }
 
-
 function auditAgents(root: string, robots: RobotsTxtFile): RobotsAudit {
   const results = Object.fromEntries(
     AGENTS.map((agent) => [agent, robots.isAllowed(root, agent)]),
@@ -18,7 +17,6 @@ function auditAgents(root: string, robots: RobotsTxtFile): RobotsAudit {
   return { results, passPercentage: (allowedCount / AGENTS.length) * 100 };
 }
 
-// Every agent allowed passes, some blocked warns, all blocked fails.
 export function robotsAllowsAgents(url: string, audit: RobotsAudit): Finding {
   const blockedAgents = AGENTS.filter((agent) => !audit.results[agent]);
   const status =

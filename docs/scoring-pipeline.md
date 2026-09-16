@@ -377,12 +377,14 @@ fail. If warn scored as fail, that criterion could only ever lose points,
 which is wrong — so it needs either partial credit or a `warn_only` flag that
 adjusts its ceiling. This case alone probably settles the warn question.
 
-**Where thresholds live.** The checks own them today as named constants. If
-the rulebook owns them, `runSectionBAudit` must take the rulebook as an
-argument, changing the signature work item 04 designates a Test Seam. The
-cleaner alternative — checks emit raw measurements and the scorer applies all
-thresholds — means checks stop returning `status`, which is a much larger
-rewrite. Not obvious; decide deliberately.
+**Where thresholds live — decided.** In `criteria.yaml`, read by the checks.
+Every section aggregator takes the rulebook as an argument and each check
+destructures its own numbers with `thresholdsFor`, so checks still return
+`status`. The alternative — checks emit raw measurements and the scorer applies
+all thresholds — was rejected for now: it rewrites every check, and several
+(infinite scroll, the redirect shapes) have no single number to compare. The
+cost accepted: a stored finding keeps the verdict its thresholds gave on the
+day, so changing a threshold needs a re-run, not just a rescore.
 
 **One file or many.** ~50 criteria in one file is unwieldy.
 `criteria/render.yaml`, `criteria/access.yaml`, merged at load, keeps diffs

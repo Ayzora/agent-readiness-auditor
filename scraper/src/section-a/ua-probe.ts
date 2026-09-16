@@ -3,14 +3,12 @@ import {
     type Agent,
     type AgentsProbeResult,
     type Finding,
+    type Rulebook,
 } from "../types.ts";
 import { HttpCrawler, RequestQueue } from 'crawlee';
 import { type ProbeResult } from "../types.ts";
 import { extractText } from "../extract-text.ts";
-import { skipped } from "../utils.ts";
-
-
-const BASELINE_MISMATCH_THRESHOLD = 0.1;
+import { skipped, thresholdsFor } from "../utils.ts";
 
 const USER_AGENT_STRINGS: Record<Agent, string> = {
     "ChatGPT-User": "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
@@ -30,7 +28,6 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
     "Bingbot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Safari/537.36",
     "Googlebot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36",
 };
-
 
 async function userAgentCrawler(url: string, userAgentString: string): Promise<ProbeResult> {
     let htmlContent = '';
@@ -54,7 +51,6 @@ async function userAgentCrawler(url: string, userAgentString: string): Promise<P
         async requestHandler({ response, body }) {
             statusCode = response?.statusCode;
             htmlContent = body.toString('utf-8');
-            //Detect for cloudflare challenge page
             isChallenged = response?.headers['cf-mitigated'] === "challenge";
         },
         failedRequestHandler({ request, log }) {
@@ -72,7 +68,6 @@ async function userAgentCrawler(url: string, userAgentString: string): Promise<P
 
 }
 
-
 export async function userAgentProb(robotsResults: Record<Agent, boolean>, url: string): Promise<AgentsProbeResult[]> {
     let allowedAgents = AGENTS.filter((agent) => robotsResults[agent])
     let probeResults = [];
@@ -85,11 +80,9 @@ export async function userAgentProb(robotsResults: Record<Agent, boolean>, url: 
     return probeResults
 }
 
-
 const NO_PROBES = "no agents allowed to probe";
 
-
-// 402 is a deliberate commercial choice, not a misconfiguration, so it warns.
+// 402 is a deliberate choice, not a misconfiguration, so it warns.
 export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult[]): Finding {
     if (agentResults.length === 0) return skipped("access.pay_per_crawl", url, NO_PROBES);
 
@@ -99,7 +92,6 @@ export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult
 
     return { criterionKey: "access.pay_per_crawl", url, status: agents.length > 0 ? "warn" : "pass", evidence: { agents } };
 }
-
 
 export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbeResult[]): Finding {
     if (agentResults.length === 0) return skipped("access.policy_divergence", url, NO_PROBES);
@@ -111,12 +103,14 @@ export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbe
     return { criterionKey: "access.policy_divergence", url, status: agents.length > 0 ? "fail" : "pass", evidence: { agents } };
 }
 
-
 export function findBaselineMismatchedAgents(
     url: string,
     baselineRawHtml: string | null,
     agentProbs: AgentsProbeResult[],
+    rulebook: Rulebook,
 ): Finding {
+    const { fail } = thresholdsFor(rulebook, "access.baseline_mismatch");
+
     if (agentProbs.length === 0) return skipped("access.baseline_mismatch", url, NO_PROBES);
 
     const baselineTextLength = extractText(baselineRawHtml).length;
@@ -128,7 +122,7 @@ export function findBaselineMismatchedAgents(
     const agents = agentProbs
         .map((agent) => ({ agent: agent.userAgent, agentTextLength: extractText(agent.htmlContent).length }))
         .filter(({ agentTextLength }) =>
-            Math.abs(agentTextLength - baselineTextLength) / baselineTextLength > BASELINE_MISMATCH_THRESHOLD);
+            Math.abs(agentTextLength - baselineTextLength) / baselineTextLength > fail);
 
     return {
         criterionKey: "access.baseline_mismatch",

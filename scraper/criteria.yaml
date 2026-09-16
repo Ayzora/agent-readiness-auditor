@@ -1,15 +1,9 @@
-# The rulebook: what each criterion is worth and what to tell the site owner.
-# Checks decide pass/warn/fail; this file only prices and explains the result.
-# Every `key` must match a criterionKey a check emits, exactly.
-#
-# weight    how much it counts toward its dimension's score (1–10)
-# severity  critical | high | medium | low
-# effort    S | M | L — how much work the fix is, used for ROI sorting
+# Every key must match a criterionKey a check emits.
+# effort: S | M | L. thresholds: the cutoffs the check compares against.
 
 version: v0.1.0
 
 criteria:
-  # --- access (Section A) ----------------------------------------------------
 
   - key: access.robots_allows_agents
     dimension: access
@@ -54,6 +48,8 @@ criteria:
     weight: 7
     severity: high
     effort: M
+    thresholds:
+      fail: 0.1            # text length differs from the baseline by more than 10%
     title: "Agents see different content from a normal visitor"
     why: >
       The text an agent received differs noticeably from what a browser
@@ -88,11 +84,11 @@ criteria:
     weight: 2
     severity: low
     effort: S
+    thresholds:
+      warn: 90             # days since the newest lastmod
     title: "Sitemap has not been updated recently"
     why: "Stale lastmod dates tell agents nothing has changed, so they may skip new content."
     fix: "Regenerate the sitemap with accurate lastmod dates when pages change"
-
-  # --- render (Section B) ----------------------------------------------------
 
   - key: render.text_coverage
     dimension: render
@@ -100,6 +96,10 @@ criteria:
     weight: 9
     severity: critical
     effort: L
+    thresholds:
+      # raw text ÷ rendered text
+      fail: 0.3
+      warn: 0.6
     title: "Content requires JavaScript to appear"
     why: >
       Many agents fetch raw HTML without executing JavaScript. If most of your
@@ -154,6 +154,8 @@ criteria:
     weight: 2
     severity: low
     effort: S
+    thresholds:
+      warn: 3              # redirect hops
     title: "Three or more redirect hops before the page"
     why: "Each hop costs latency and a chance for an agent to give up."
     fix: "Collapse the chain to a single hop"
@@ -164,6 +166,10 @@ criteria:
     weight: 6
     severity: high
     effort: S
+    thresholds:
+      fail: 0.8            # word similarity to the site's error page
+      # error pages with less text are too empty to compare, so skip
+      min_fingerprint_chars: 50
     title: "Page looks like the site's error page but returns 200"
     why: "Agents trust the status code and treat the error page as real content."
     fix: "Return a 404 status for pages that do not exist"
@@ -174,6 +180,8 @@ criteria:
     weight: 2
     severity: low
     effort: S
+    thresholds:
+      warn: 10             # percent of DOM text hidden by CSS
     title: "A large share of the page's text is hidden"
     why: >
       Agents that read the HTML see hidden text as normal content, so what they
@@ -186,6 +194,9 @@ criteria:
     weight: 4
     severity: medium
     effort: S
+    thresholds:
+      warn: 10             # percent of images with no alt attribute at all
+      fail: 40
     title: "Images are missing alt text"
     why: "Agents cannot see images; alt text is the only description they get."
     fix: "Add descriptive alt attributes to meaningful images"
@@ -196,6 +207,11 @@ criteria:
     weight: 3
     severity: medium
     effort: M
+    thresholds:
+      # page text below which the canvas is the content
+      min_text_chars: 500
+      min_width: 400
+      min_height: 300
     title: "Main content is drawn in a canvas"
     why: "Text drawn in a <canvas> is pixels, not text, and agents cannot read it."
     fix: "Provide the same content as HTML text alongside the canvas"
@@ -206,6 +222,13 @@ criteria:
     weight: 4
     severity: medium
     effort: M
+    thresholds:
+      # parent page text below which the frame is the content
+      min_text_chars: 500
+      min_width: 400
+      min_height: 300
+      # percent width or height that counts as filling the container
+      fills_container_percent: 50
     title: "Main content lives inside an iframe"
     why: "Many agents do not follow iframes, so they miss the content inside."
     fix: "Put primary content directly in the page's HTML"
@@ -216,6 +239,8 @@ criteria:
     weight: 5
     severity: medium
     effort: M
+    thresholds:
+      fail: 10             # percent text growth after clicking "load more"
     title: "Content only appears after clicking"
     why: "Agents rarely click tabs, accordions or 'load more' buttons."
     fix: "Include the content in the HTML and use CSS or <details> to collapse it"
@@ -226,6 +251,8 @@ criteria:
     weight: 4
     severity: medium
     effort: M
+    thresholds:
+      fail: 10             # percent text growth after scrolling, with no page links
     title: "Content loads on scroll with no page links"
     why: "Agents do not scroll, so everything past the first batch is unreachable."
     fix: "Add paginated URLs (?page=2) linked from the page"
@@ -236,11 +263,13 @@ criteria:
     weight: 6
     severity: high
     effort: M
+    thresholds:
+      fail: 30             # percent of body text only visible after accepting
     title: "Content is hidden until cookies are accepted"
     why: "Agents do not click consent banners, so they only see the banner."
     fix: "Render page content behind the banner, not after it is accepted"
 
-# A gate caps the total score when its criterion fails, whatever else passed.
+# A gate caps the total score when its criterion fails.
 gates:
   - criterion: access.robots_allows_agents
     cap: 20

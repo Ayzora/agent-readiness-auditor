@@ -13,9 +13,13 @@ import {
   sitemapInRobots,
   sitemapPresent,
 } from "./sitemap.ts";
-import type { Finding, PageSnapshot } from "../types.ts";
+import type { Finding, PageSnapshot, Rulebook } from "../types.ts";
 
-export async function runSectionAAudit(url: string, snapshot: PageSnapshot): Promise<Finding[]> {
+export async function runSectionAAudit(
+  url: string,
+  snapshot: PageSnapshot,
+  rulebook: Rulebook,
+): Promise<Finding[]> {
   // Site-scope findings are keyed on the site root, not the audited page.
   const siteUrl = new URL("/", url).href;
 
@@ -32,9 +36,9 @@ export async function runSectionAAudit(url: string, snapshot: PageSnapshot): Pro
     robotsAllowsAgents(siteUrl, robotsAuditResult),
     findPolicyDivergentAgents(url, uaProbeResults),
     payPerCrawlDetected(url, uaProbeResults),
-    findBaselineMismatchedAgents(url, snapshot.rawHtml, uaProbeResults),
+    findBaselineMismatchedAgents(url, snapshot.rawHtml, uaProbeResults, rulebook),
     rateLimit(siteUrl, rateLimitResult),
     sitemapPresent(siteUrl, sitemapExists, sitemapUrlsFromRobots),
-    sitemapFresh(siteUrl, sitemapExists, freshness),
+    sitemapFresh(siteUrl, sitemapExists, freshness, rulebook),
   ];
 }

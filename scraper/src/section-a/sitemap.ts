@@ -1,11 +1,6 @@
 import { RobotsTxtFile } from "crawlee";
-import { type Finding, type SitemapFreshness } from "../types.ts";
-import { skipped } from "../utils.ts";
-
-const SITEMAP_STALE_DAYS = 90;
-
-
-
+import { type Finding, type Rulebook, type SitemapFreshness } from "../types.ts";
+import { skipped, thresholdsFor } from "../utils.ts";
 
 export async function sitemapInRobots(url: string): Promise<string[]> {
     const root = new URL("/", url).href;
@@ -19,12 +14,10 @@ export async function sitemapInRobots(url: string): Promise<string[]> {
 
 export async function hasSitemap(url: string): Promise<boolean> {
 
-    //first check if there are in returned sitemaps from sitemapInRobots
     const sitemapsInRobots = await sitemapInRobots(url);
     if (sitemapsInRobots.length > 0) {
         return true
     }
-
 
     const sitemap = new URL("/sitemap.xml", url).href;
     try {
@@ -34,9 +27,6 @@ export async function hasSitemap(url: string): Promise<boolean> {
         return false;
     }
 }
-
-
-
 
 export async function sitemapFreshness(sitemapUrl: string): Promise<SitemapFreshness> {
     try {
@@ -60,7 +50,6 @@ export async function sitemapFreshness(sitemapUrl: string): Promise<SitemapFresh
     }
 }
 
-
 export function sitemapPresent(url: string, exists: boolean, urlsFromRobots: string[]): Finding {
     return {
         criterionKey: "access.sitemap_present",
@@ -70,8 +59,14 @@ export function sitemapPresent(url: string, exists: boolean, urlsFromRobots: str
     };
 }
 
-export function sitemapFresh(url: string, exists: boolean, freshness: SitemapFreshness): Finding {
+export function sitemapFresh(
+    url: string,
+    exists: boolean,
+    freshness: SitemapFreshness,
+    rulebook: Rulebook,
+): Finding {
     const criterionKey = "access.sitemap_freshness";
+    const { warn } = thresholdsFor(rulebook, criterionKey);
 
     if (!exists) return skipped(criterionKey, url, "no sitemap");
     if (freshness.daysSinceMostRecent === null) return skipped(criterionKey, url, "no readable lastmod");
@@ -79,7 +74,7 @@ export function sitemapFresh(url: string, exists: boolean, freshness: SitemapFre
     return {
         criterionKey,
         url,
-        status: freshness.daysSinceMostRecent > SITEMAP_STALE_DAYS ? "warn" : "pass",
+        status: freshness.daysSinceMostRecent > warn ? "warn" : "pass",
         evidence: { ...freshness },
     };
 }

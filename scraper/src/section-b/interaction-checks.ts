@@ -1,28 +1,17 @@
-// Work item 06 — interaction checks: the Section B checks that read what the
-// interaction probe found. The clicking already happened in Phase 1, so every
-// function here is synchronous and pure over the numbers it was handed.
-
 import { parseHTML } from "linkedom";
-import type { Finding, InteractionCapture, PageSnapshot } from "../types.ts";
-import { percentage, skipped } from "../utils.ts";
-
-// Asserted, not derived. They lift into criteria.yaml at build step 2.
-const CONTENT_GROWTH_FAIL_PERCENT = 10;
-const SCROLL_GROWTH_FAIL_PERCENT = 10;
-const CONSENT_GATED_FAIL_PERCENT = 30;
+import type { Finding, InteractionCapture, PageSnapshot, Rulebook } from "../types.ts";
+import { percentage, skipped, thresholdsFor } from "../utils.ts";
 
 const PAGINATION_HREF = /[?&]page=\d|\/page\/\d/i;
 const PAGINATION_LABEL = /pagin/i;
 
-// ---------------------------------------------------------------------------
-// render.content_behind_interaction — the "Load more" button
-// ---------------------------------------------------------------------------
-
 export function contentBehindInteraction(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
+  rulebook: Rulebook,
 ): Finding {
   const CRITERION = "render.content_behind_interaction";
+  const { fail } = thresholdsFor(rulebook, CRITERION);
   const skip = (reason: string, evidence?: Record<string, unknown>) =>
     skipped(CRITERION, snapshot.url, reason, evidence);
 
@@ -48,29 +37,22 @@ export function contentBehindInteraction(
   return {
     criterionKey: CRITERION,
     url: snapshot.url,
-    status: growthPercent > CONTENT_GROWTH_FAIL_PERCENT ? "fail" : "pass",
+    status: growthPercent > fail ? "fail" : "pass",
     evidence: {
       controlText: loadMore.controlText,
       charsBefore,
       charsAfter,
       growthPercent,
-      failPercent: CONTENT_GROWTH_FAIL_PERCENT,
+      failPercent: fail,
     },
   };
 }
 
-// ---------------------------------------------------------------------------
-// render.infinite_scroll — the endless feed
-// ---------------------------------------------------------------------------
-
-// Infers, since Phase 1 records three numbers about scrolling and none of them
-// is pagination. Same position render.iframe_primary_content is in.
 function paginationSignals(renderedHtml: string): string[] {
   const { document } = parseHTML(renderedHtml);
   const signals: string[] = [];
 
-  // rel is a space-separated list, so it is split: "noopener next" matches,
-  // "nextpage" does not.
+  // rel is a space-separated list: "noopener next" matches, "nextpage" does not.
   const relNext = Array.from(document.querySelectorAll("a[rel], link[rel]")).some((element) =>
     (element.getAttribute("rel") ?? "").split(/\s+/).includes("next"),
   );
@@ -92,13 +74,14 @@ function paginationSignals(renderedHtml: string): string[] {
   return signals;
 }
 
-// Growth alone is not the verdict: content also reachable at ?page=2 has an
-// address an agent can fetch. With no pagination it has none.
+// Growth only fails when no pagination gives the extra content an address.
 export function infiniteScroll(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
+  rulebook: Rulebook,
 ): Finding {
   const CRITERION = "render.infinite_scroll";
+  const { fail } = thresholdsFor(rulebook, CRITERION);
   const skip = (reason: string, evidence?: Record<string, unknown>) =>
     skipped(CRITERION, snapshot.url, reason, evidence);
 
@@ -117,7 +100,7 @@ export function infiniteScroll(
 
   const growthPercent = percentage(charsAfter - charsBefore, charsBefore);
 
-  if (growthPercent <= SCROLL_GROWTH_FAIL_PERCENT) {
+  if (growthPercent <= fail) {
     return {
       criterionKey: CRITERION,
       url: snapshot.url,
@@ -127,7 +110,7 @@ export function infiniteScroll(
         charsBefore,
         charsAfter,
         growthPercent,
-        failPercent: SCROLL_GROWTH_FAIL_PERCENT,
+        failPercent: fail,
       },
     };
   }
@@ -143,21 +126,19 @@ export function infiniteScroll(
       charsBefore,
       charsAfter,
       growthPercent,
-      failPercent: SCROLL_GROWTH_FAIL_PERCENT,
+      failPercent: fail,
       paginationSignals: signals,
     },
   };
 }
 
-// ---------------------------------------------------------------------------
-// render.consent_wall — the cookie banner
-// ---------------------------------------------------------------------------
-
 export function consentWall(
   snapshot: PageSnapshot,
   interactions: InteractionCapture | null,
+  rulebook: Rulebook,
 ): Finding {
   const CRITERION = "render.consent_wall";
+  const { fail } = thresholdsFor(rulebook, CRITERION);
   const skip = (reason: string, evidence?: Record<string, unknown>) =>
     skipped(CRITERION, snapshot.url, reason, evidence);
 
@@ -185,21 +166,20 @@ export function consentWall(
     return skip("body text was not measured on both sides of accepting");
   if (charsAfter === 0) return skip("the page had no text after accepting", { charsAfter });
 
-  // charsAfter is the whole body, so it is the denominator: dividing by the
-  // truncated charsBefore would report a heavy banner as well over 100%.
+  // Divide by charsAfter, the whole body, or a heavy banner reads over 100%.
   const gatedPercent = percentage(charsAfter - charsBefore, charsAfter);
 
   return {
     criterionKey: CRITERION,
     url: snapshot.url,
-    status: gatedPercent > CONSENT_GATED_FAIL_PERCENT ? "fail" : "warn",
+    status: gatedPercent > fail ? "fail" : "warn",
     evidence: {
       bannerFound: true,
       controlText: consent.controlText,
       charsBefore,
       charsAfter,
       gatedPercent,
-      failPercent: CONSENT_GATED_FAIL_PERCENT,
+      failPercent: fail,
     },
   };
 }
