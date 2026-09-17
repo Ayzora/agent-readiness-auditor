@@ -2,7 +2,7 @@
 type: Work Item
 title: Extraction ratio check
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
