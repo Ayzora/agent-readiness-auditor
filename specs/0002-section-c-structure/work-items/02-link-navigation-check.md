@@ -2,7 +2,7 @@
 type: Work Item
 title: Link navigation check
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -22,18 +22,18 @@ This item does not wire the check into the CLI; Work Item 04 does.
 
 ## Acceptance criteria
 
-- [ ] `section-c/link-navigation.ts` exports a synchronous check taking `(snapshot: PageSnapshot, rulebook: Rulebook)` and returning a `Finding` with `criterionKey: "structure.link_navigation"`.
-- [ ] It reads only `snapshot.rawHtml`; nothing in the file references `renderedHtml`.
-- [ ] Followable: `<a>` whose `href` is a real URL, relative or absolute.
-- [ ] Unfollowable: `<a>` with no, empty, `#`, or `javascript:` `href`; a non-`<a>` with `role="link"`; any element whose inline `onclick` contains `location`, `href` or `window.open`.
-- [ ] Each element counts at most once; an `<a>` with a real `href` is followable even with an `onclick`.
-- [ ] In-page anchors such as `href="#pricing"` and `<button>`s without a navigating `onclick` are counted neither way.
-- [ ] `unfollowablePercent = unfollowable ÷ (followable + unfollowable) × 100` via `percentage()`.
-- [ ] Verdicts in order: `rawHtml` null → `skip` with `reason: "raw fetch failed"`; no followable links (including no link-like elements at all) → `fail`; `unfollowablePercent > fail` → `fail`; `> warn` → `warn`; otherwise `pass`.
-- [ ] Evidence has `followableLinks`, `unfollowableLinks`, `unfollowablePercent` and `examples`: at most 5 entries, each a tag name plus `outerHTML` trimmed to at most 120 characters.
-- [ ] No threshold number appears in the file; `fail` and `warn` come from `thresholdsFor`.
-- [ ] `criteria.yaml` has a `structure.link_navigation` entry: `dimension: structure`, `scope: page`, weight 7, severity high, effort S, thresholds `fail: 30` and `warn: 10`, and the title/why/fix from Spec Requirement 24.
-- [ ] `pnpm lint` passes.
+- [x] `section-c/link-navigation.ts` exports a synchronous check taking `(snapshot: PageSnapshot, rulebook: Rulebook)` and returning a `Finding` with `criterionKey: "structure.link_navigation"`.
+- [x] It reads only `snapshot.rawHtml`; nothing in the file references `renderedHtml`.
+- [x] Followable: `<a>` whose `href` is a real URL, relative or absolute.
+- [x] Unfollowable: `<a>` with no, empty, `#`, or `javascript:` `href`; a non-`<a>` with `role="link"`; any element whose inline `onclick` contains `location`, `href` or `window.open`.
+- [x] Each element counts at most once; an `<a>` with a real `href` is followable even with an `onclick`.
+- [x] In-page anchors such as `href="#pricing"` and `<button>`s without a navigating `onclick` are counted neither way.
+- [x] `unfollowablePercent = unfollowable ÷ (followable + unfollowable) × 100` via `percentage()`.
+- [x] Verdicts in order: `rawHtml` null → `skip` with `reason: "raw fetch failed"`; no followable links (including no link-like elements at all) → `fail`; `unfollowablePercent > fail` → `fail`; `> warn` → `warn`; otherwise `pass`.
+- [x] Evidence has `followableLinks`, `unfollowableLinks`, `unfollowablePercent` and `examples`: at most 5 entries, each a tag name plus `outerHTML` trimmed to at most 120 characters.
+- [x] No threshold number appears in the file; `fail` and `warn` come from `thresholdsFor`.
+- [x] `criteria.yaml` has a `structure.link_navigation` entry: `dimension: structure`, `scope: page`, weight 7, severity high, effort S, thresholds `fail: 30` and `warn: 10`, and the title/why/fix from Spec Requirement 24.
+- [x] `pnpm lint` passes.
 
 ## Covers
 

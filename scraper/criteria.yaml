@@ -4,7 +4,6 @@
 version: v0.1.0
 
 criteria:
-
   - key: access.robots_allows_agents
     dimension: access
     scope: site
@@ -49,7 +48,7 @@ criteria:
     severity: high
     effort: M
     thresholds:
-      fail: 0.1            # text length differs from the baseline by more than 10%
+      fail: 0.1 # text length differs from the baseline by more than 10%
     title: "Agents see different content from a normal visitor"
     why: >
       The text an agent received differs noticeably from what a browser
@@ -85,7 +84,7 @@ criteria:
     severity: low
     effort: S
     thresholds:
-      warn: 90             # days since the newest lastmod
+      warn: 90 # days since the newest lastmod
     title: "Sitemap has not been updated recently"
     why: "Stale lastmod dates tell agents nothing has changed, so they may skip new content."
     fix: "Regenerate the sitemap with accurate lastmod dates when pages change"
@@ -155,7 +154,7 @@ criteria:
     severity: low
     effort: S
     thresholds:
-      warn: 3              # redirect hops
+      warn: 3 # redirect hops
     title: "Three or more redirect hops before the page"
     why: "Each hop costs latency and a chance for an agent to give up."
     fix: "Collapse the chain to a single hop"
@@ -167,7 +166,7 @@ criteria:
     severity: high
     effort: S
     thresholds:
-      fail: 0.8            # word similarity to the site's error page
+      fail: 0.8 # word similarity to the site's error page
       # error pages with less text are too empty to compare, so skip
       min_fingerprint_chars: 50
     title: "Page looks like the site's error page but returns 200"
@@ -181,7 +180,7 @@ criteria:
     severity: low
     effort: S
     thresholds:
-      warn: 10             # percent of DOM text hidden by CSS
+      warn: 10 # percent of DOM text hidden by CSS
     title: "A large share of the page's text is hidden"
     why: >
       Agents that read the HTML see hidden text as normal content, so what they
@@ -195,7 +194,7 @@ criteria:
     severity: medium
     effort: S
     thresholds:
-      warn: 10             # percent of images with no alt attribute at all
+      warn: 10 # percent of images with no alt attribute at all
       fail: 40
     title: "Images are missing alt text"
     why: "Agents cannot see images; alt text is the only description they get."
@@ -240,7 +239,7 @@ criteria:
     severity: medium
     effort: M
     thresholds:
-      fail: 10             # percent text growth after clicking "load more"
+      fail: 10 # percent text growth after clicking "load more"
     title: "Content only appears after clicking"
     why: "Agents rarely click tabs, accordions or 'load more' buttons."
     fix: "Include the content in the HTML and use CSS or <details> to collapse it"
@@ -252,7 +251,7 @@ criteria:
     severity: medium
     effort: M
     thresholds:
-      fail: 10             # percent text growth after scrolling, with no page links
+      fail: 10 # percent text growth after scrolling, with no page links
     title: "Content loads on scroll with no page links"
     why: "Agents do not scroll, so everything past the first batch is unreachable."
     fix: "Add paginated URLs (?page=2) linked from the page"
@@ -264,7 +263,7 @@ criteria:
     severity: high
     effort: M
     thresholds:
-      fail: 30             # percent of body text only visible after accepting
+      fail: 30 # percent of body text only visible after accepting
     title: "Content is hidden until cookies are accepted"
     why: "Agents do not click consent banners, so they only see the banner."
     fix: "Render page content behind the banner, not after it is accepted"
@@ -272,10 +271,10 @@ criteria:
   - key: structure.extraction_ratio
     dimension: structure
     scope: page
-    weight: 6 
+    weight: 6
     severity: high
-    effort: M 
-    thresholds: 
+    effort: M
+    thresholds:
       warn: 0.5
       fail: 0.25
     title: "Most of the page's text is menus and page chrome"
@@ -283,6 +282,22 @@ criteria:
       An agent reads and pays for every word on the page, and reader-style
       extraction may miss the real content among the chrome.
     fix: "Put primary content in a clear main content region and trim repeated chrome"
+
+  - key: structure.link_navigation
+    dimension: structure
+    scope: page
+    weight: 7
+    severity: high
+    effort: S
+    thresholds:
+      warn: 10
+      fail: 30
+    title: "Links an agent cannot follow"
+    why: >
+      Agents navigate by following href URLs. Links written as #, javascript:
+      or inline click handlers lead nowhere, so those routes through the site
+      simply do not exist for them.
+    fix: "Use <a> elements with real href URLs for navigation"
 
 # A gate caps the total score when its criterion fails.
 gates:
