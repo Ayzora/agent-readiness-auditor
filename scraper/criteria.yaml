@@ -269,6 +269,21 @@ criteria:
     why: "Agents do not click consent banners, so they only see the banner."
     fix: "Render page content behind the banner, not after it is accepted"
 
+  - key: structure.extraction_ratio
+    dimension: structure
+    scope: page
+    weight: 6 
+    severity: high
+    effort: M 
+    thresholds: 
+      warn: 0.5
+      fail: 0.25
+    title: "Most of the page's text is menus and page chrome"
+    why: >
+      An agent reads and pays for every word on the page, and reader-style
+      extraction may miss the real content among the chrome.
+    fix: "Put primary content in a clear main content region and trim repeated chrome"
+
 # A gate caps the total score when its criterion fails.
 gates:
   - criterion: access.robots_allows_agents

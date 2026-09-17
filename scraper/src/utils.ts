@@ -26,3 +26,7 @@ export function thresholdsFor(rulebook: Rulebook, criterionKey: string): Record<
     },
   });
 }
+
+
+
+export const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);

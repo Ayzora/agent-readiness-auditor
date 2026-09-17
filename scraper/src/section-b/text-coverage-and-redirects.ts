@@ -1,8 +1,6 @@
 import type { Finding, FindingStatus, PageSnapshot, Rulebook } from "../types.ts";
 import { extractText } from "../extract-text.ts";
-import { skipped, thresholdsFor } from "../utils.ts";
-
-const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);
+import { Clamp, skipped, thresholdsFor } from "../utils.ts";
 
 export function getTextCoverage(snapshot: PageSnapshot, rulebook: Rulebook): Finding {
   let status: FindingStatus;
