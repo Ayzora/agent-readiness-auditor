@@ -24,18 +24,18 @@ This item does not wire the check into the CLI; Work Item 04 does.
 
 ## Acceptance criteria
 
-- [ ] `section-c/extraction-ratio.ts` exports a synchronous check taking `(snapshot: PageSnapshot, rulebook: Rulebook)` and returning a `Finding` with `criterionKey: "structure.extraction_ratio"`.
-- [ ] It reads only `snapshot.rawHtml`; nothing in the file references `renderedHtml`.
-- [ ] Readable text comes from `@mozilla/readability` on a freshly parsed `linkedom` document, whitespace-collapsed and trimmed.
-- [ ] All text is `extractText(snapshot.rawHtml)`.
-- [ ] `ratio = readableChars ÷ rawChars`, clamped to at most 1.
+- [x] `section-c/extraction-ratio.ts` exports a synchronous check taking `(snapshot: PageSnapshot, rulebook: Rulebook)` and returning a `Finding` with `criterionKey: "structure.extraction_ratio"`.
+- [x] It reads only `snapshot.rawHtml`; nothing in the file references `renderedHtml`.
+- [x] Readable text comes from `@mozilla/readability` on a freshly parsed `linkedom` document, whitespace-collapsed and trimmed.
+- [x] All text is `extractText(snapshot.rawHtml)`.
+- [x] `ratio = readableChars ÷ rawChars`, clamped to at most 1.
 - [ ] Verdicts in order: `rawHtml` null → `skip` with `reason: "raw fetch failed"`; `rawChars` 0 → `fail` with `ratio: null`; no article → `fail` with `ratio: 0`, `readabilityFound: false`; `ratio < fail` → `fail`; `ratio < warn` → `warn`; otherwise `pass`.
-- [ ] Every non-skip finding's evidence has `ratio`, `readableChars`, `rawChars`, `readabilityFound`.
-- [ ] No threshold number appears in the file; `fail` and `warn` come from `thresholdsFor`.
-- [ ] `criteria.yaml` has a `structure.extraction_ratio` entry: `dimension: structure`, `scope: page`, weight 6, severity high, effort M, thresholds `fail: 0.25` and `warn: 0.5`, and the title/why/fix from Spec Requirement 24.
-- [ ] `@mozilla/readability` is a declared dependency of `scraper`, committed with the lockfile.
-- [ ] `GLOSSARY.md` and `agent-readiness-auditor-spec.md` §3 C edits are committed.
-- [ ] `pnpm lint` passes.
+- [x] Every non-skip finding's evidence has `ratio`, `readableChars`, `rawChars`, `readabilityFound`.
+- [x] No threshold number appears in the file; `fail` and `warn` come from `thresholdsFor`.
+- [x] `criteria.yaml` has a `structure.extraction_ratio` entry: `dimension: structure`, `scope: page`, weight 6, severity high, effort M, thresholds `fail: 0.25` and `warn: 0.5`, and the title/why/fix from Spec Requirement 24.
+- [x] `@mozilla/readability` is a declared dependency of `scraper`, committed with the lockfile.
+- [x] `GLOSSARY.md` and `agent-readiness-auditor-spec.md` §3 C edits are committed.
+- [x] `pnpm lint` passes.
 
 ## Covers
 

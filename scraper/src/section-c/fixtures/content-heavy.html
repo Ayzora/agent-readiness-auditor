@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Why sitemaps still matter</title>
+  </head>
+  <body>
+    <nav><a href="/">Home</a> <a href="/blog">Blog</a></nav>
+
+    <article>
+      <h1>Why sitemaps still matter</h1>
+      <p>
+        A sitemap is the cheapest promise a website can make. It says: here is
+        every page I would like you to know about, here is when each one last
+        changed, and here is roughly how important I think each one is. None of
+        that is binding, and no crawler is obliged to believe a word of it, but
+        the file costs almost nothing to generate and it removes an entire class
+        of guesswork from the other side of the connection.
+      </p>
+      <p>
+        The argument against sitemaps usually runs like this: a well linked site
+        does not need one, because any crawler that can follow links will reach
+        every page eventually. That is true in the same way it is true that a
+        well organised house does not need labels on its boxes. It holds right
+        up until the moment something is stored somewhere unexpected, and then
+        the cost of the missing label is paid over and over by everyone who has
+        to search the attic.
+      </p>
+      <p>
+        Pages that are reachable only through a search form are the obvious
+        case. So are pages linked from a carousel that renders after JavaScript
+        runs, pages that sit four clicks deep behind pagination, and pages whose
+        only inbound link lives on a page that happens to be slow that day. A
+        crawler working on a budget will simply stop before it gets there, and
+        nothing about that decision is visible to you.
+      </p>
+      <p>
+        The freshness signal matters more than the completeness one. A crawler
+        that visited last week and sees no changed timestamps can skip the whole
+        site cheaply and spend its budget somewhere it will find something new.
+        That is a service you are doing for yourself as much as for the crawler,
+        because the alternative is a full re-crawl that costs you bandwidth and
+        earns you nothing.
+      </p>
+      <p>
+        The failure mode worth avoiding is a sitemap that lies. Timestamps that
+        update on every deploy regardless of whether the content changed teach a
+        crawler that your freshness signal is noise, and once it has learned
+        that, it will ignore the signal permanently. A sitemap that is mostly
+        right and occasionally stale is far better than one that is confidently
+        wrong every single day.
+      </p>
+    </article>
+
+    <footer><p>© 2026 Example</p></footer>
+  </body>
+</html>
