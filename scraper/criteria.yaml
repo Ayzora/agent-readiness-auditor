@@ -1,5 +1,6 @@
 # Every key must match a criterionKey a check emits.
 # effort: S | M | L. thresholds: the cutoffs the check compares against.
+# required_properties: the per-type property paths semantics.required_properties judges.
 
 version: v0.1.0
 
@@ -298,6 +299,61 @@ criteria:
       or inline click handlers lead nowhere, so those routes through the site
       simply do not exist for them.
     fix: "Use <a> elements with real href URLs for navigation"
+
+  - key: semantics.structured_data_present
+    dimension: semantics
+    scope: page
+    weight: 6
+    severity: high
+    effort: M
+    title: "No machine-readable facts about this page"
+    why: >
+      Agents read a page's structured data before its prose, because it states
+      the facts plainly — what this page is, what it costs, who published it —
+      with no inference. Without it every fact has to be guessed from the text.
+      Search engines and retrieval systems read this data today, and no AI
+      provider publicly commits to it, which is why this is weighted
+      moderately rather than as a critical failure.
+    fix: "Add a JSON-LD block to the page's HTML describing what the page is"
+
+  - key: semantics.structured_data_parses
+    dimension: semantics
+    scope: page
+    weight: 5
+    severity: high
+    effort: S
+    title: "Structured data is present but broken"
+    why: >
+      A block that is not valid JSON is discarded whole by every reader, so
+      markup that was written, shipped and maintained delivers nothing.
+    fix: "Fix the JSON syntax error so the block parses"
+
+  - key: semantics.required_properties
+    dimension: semantics
+    scope: page
+    weight: 5
+    severity: medium
+    effort: S
+    # A hand-written subset of schema.org, not the vocabulary itself. A type
+    # absent from here is reported as unknown and costs the page nothing.
+    # Paths: a dot walks into a nested object, [] means every member of that
+    # array must satisfy the rest of the path.
+    required_properties:
+      Product: [name, offers.price, offers.availability]
+      Organization: [name, url, sameAs]
+      Article: [headline, datePublished, author]
+      NewsArticle: [headline, datePublished, author]
+      BlogPosting: [headline, datePublished, author]
+      FAQPage: ["mainEntity[].name", "mainEntity[].acceptedAnswer"]
+      Event: [name, startDate, location]
+      LocalBusiness: [name, address, telephone]
+    title: "Structured data is declared but not filled in"
+    why: >
+      A type with no properties tells an agent what kind of thing the page is
+      but none of the facts about it. A Product with no price and no
+      availability leaves an agent doing exactly the guesswork the markup was
+      meant to remove.
+    fix: "Add the missing properties named in this report to each entity"
 
 # A gate caps the total score when its criterion fails.
 gates:

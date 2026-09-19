@@ -68,6 +68,8 @@ export interface Criterion {
   why: string;
   fix: string;
   thresholds?: Record<string, number>;
+  // semantics.required_properties only: type name -> the property paths it must carry.
+  required_properties?: Record<string, string[]>;
 }
 
 export interface Gate {
@@ -136,6 +138,27 @@ export interface InteractionCapture {
   scroll: ScrollCapture | null;
   clicks: number;
   elapsedMs: number;
+}
+
+export interface JsonLdEntity {
+  // Every normalised @type this entity declares; an array declares several.
+  types: string[];
+  value: Record<string, unknown>;
+}
+
+export interface JsonLdBlockError {
+  index: number;
+  message: string;
+}
+
+// What one page's JSON-LD blocks amount to. All three Section D checks read this,
+// so no two of them can disagree about what the page declares.
+export interface PageJsonLd {
+  blockCount: number;
+  parsedCount: number;
+  entities: JsonLdEntity[];
+  declaredTypes: string[];
+  errors: JsonLdBlockError[];
 }
 
 // A 200 means the site soft-404s; `fingerprint` is its error page's text.

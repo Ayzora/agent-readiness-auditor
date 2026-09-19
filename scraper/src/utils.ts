@@ -29,6 +29,26 @@ export function thresholdsFor(rulebook: Rulebook, criterionKey: string): Record<
 
 
 
+// The per-type table is the rulebook's, not the check's, for the same reason
+// thresholds are. Reading a type the table does not define throws.
+export function requiredPropertiesFor(
+  rulebook: Rulebook,
+  criterionKey: string,
+): Record<string, string[]> {
+  const table = rulebook.criteria.find(
+    (criterion) => criterion.key === criterionKey,
+  )?.required_properties;
+  if (!table) throw new Error(`criteria.yaml has no required_properties for ${criterionKey}`);
+
+  return new Proxy(table, {
+    get(target, name) {
+      if (typeof name === "string" && !(name in target))
+        throw new Error(`criteria.yaml has no required properties for type "${name}"`);
+      return target[name as string];
+    },
+  });
+}
+
 export const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);
 
 // .invalid is reserved by RFC 2606, so a snapshot that leaks into fetching code fails fast.

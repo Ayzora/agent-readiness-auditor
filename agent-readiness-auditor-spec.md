@@ -78,11 +78,17 @@ Both read the **raw** HTML: what most agents actually receive.
 
 ### D. Semantics — is meaning declared?
 
-- JSON-LD present, parses, validates against schema.org  
-- Type appropriateness — does declared type match detected page template? (Product page typed only `WebPage` \= finding)  
-- **Required-property completeness per type** — `Product` without `offers.price`/`availability`, `Organization` without `sameAs`, `FAQPage` without `acceptedAnswer`. Cheap to check, most sites fail.  
-- Microdata / RDFa fallback, OpenGraph  
-- `dateModified` present and plausible
+- JSON-LD present: at least one `<script type="application/ld+json">` block declaring an `@type`  
+- JSON-LD parses: every block is valid JSON and declares a type. Broken markup is discarded whole by every reader, and the fix differs from "add markup"  
+- **Required-property completeness per type** — `Product` without `offers.price`/`availability`, `Organization` without `sameAs`, `FAQPage` without `acceptedAnswer`. Cheap to check, most sites fail. Judged against a hand-written table of eight types in `criteria.yaml`, not against the schema.org vocabulary; a type the table does not cover costs the page nothing
+
+All three read the **raw** HTML: structured data injected by JavaScript is not there for the agents this tool measures. That claim was tested — of twelve sites fetched raw, ten carried JSON-LD in the bytes, and the six with none still had none after a full browser render. Not one injected it with JavaScript.
+
+*Cut on purpose:* OpenGraph, `dateModified` plausibility, validation against the schema.org vocabulary, microdata and RDFa. OpenGraph is a social-preview fallback that would add a low-weight consolation pass; `dateModified` is a narrow check better judged once real audit data exists; shipping and maintaining the vocabulary is weeks of work to catch mostly what the property table already catches.
+
+*Deferred, not cut:* type appropriateness — does the declared type match the detected page template? (Product page typed only `WebPage` \= finding.) It needs the crawler's structural clustering to know what template a page belongs to, so it waits for §5.
+
+**Positioning note on D:** search engines and retrieval systems consume schema.org today, and no AI provider publicly commits to parsing it. That is a difference in degree from `llms.txt`, not in kind, so weight this dimension moderately (5–6 per criterion, below render and structure) and say so in the report.
 
 ### E. Action — can an agent transact?
 

@@ -13,14 +13,15 @@ covers what exists today and the structural rules the spec insists on.
 
 The codebase is at the early stage of that spec's build order: a `scraper`
 package with Section A (Access — "can an agent get the bytes?"), Section B
-(Render — "does the content exist without JavaScript?") and Section C
+(Render — "does the content exist without JavaScript?"), Section C
 (Structure — "is the raw HTML shaped so an agent can read and navigate it?")
+and Section D (Semantics — "are the page's facts declared machine-readably?")
 implemented, run from a CLI against one URL given as an argument, and a
 `web` package that is still an unmodified `create-next-app` scaffold (plus
 one sample route proving routing works). There is no crawler, no scoring
 engine and no database. The rulebook, `scraper/criteria.yaml`, exists and
-holds every criterion's weight, report text and thresholds, but nothing
-scores with it yet.
+holds every criterion's weight, report text, thresholds and Section D's
+required-property table, but nothing scores with it yet.
 `docs/scoring-pipeline.md` records the agreed shape of the scorer before it is
 built.
 
@@ -137,6 +138,49 @@ conversion noise ratio. `specs/0002-section-c-structure/spec.md` records why.
 `link_navigation` reads HTML attributes only — it cannot see handlers attached
 by script, and the rulebook's text for it must not imply otherwise.
 
+### Section D
+
+`scraper/src/section-d/` holds three pure checks over the page's JSON-LD —
+`structured-data.ts` (`structuredDataPresent`, `structuredDataParses`) and
+`required-properties.ts` — plus `json-ld.ts`, the one helper that parses the
+blocks and collects the entities. All three checks read that helper's result,
+so no two of them can disagree about what the page declares. Aggregated by
+`section-d/index.ts`, which exports `runSectionDAudit(snapshot, rulebook)`,
+synchronous for the same reason Section B's and Section C's are. Keys are
+`semantics.*`.
+
+Raw HTML only, like Section C, and here the reason was measured rather than
+assumed: of twelve sites fetched raw, ten carried JSON-LD in the bytes, and the
+six with none still had none after a full Playwright render. Structured data
+injected by JavaScript is not there for the agents this tool measures, so it
+cannot earn a pass.
+
+Three rules the section is built around, each recorded in
+`specs/0003-section-d-semantics/spec.md`:
+
+- **An entity is a top-level object, an array member, or an `@graph` member
+  carrying an `@type`.** An object nested inside a property — the `Offer` in
+  `offers`, the `Person` in `author` — is part of its parent and is not an
+  entity, or one `Product` would look like four declarations.
+- **No warn, and no thresholds.** Section D's questions are binary, so no
+  check calls `thresholdsFor` and none returns `warn`. What it reads from the
+  rulebook instead is the per-type table, via `requiredPropertiesFor`, which
+  throws on a missing table or an undefined type for the same reason
+  `thresholdsFor` does.
+- **A type absent from the table costs the page nothing.** `required_properties`
+  returns `skip` with `reason: "no known types declared"` rather than failing a
+  page for using a legitimate type the rulebook has no opinion about. The eight
+  covered types are a starting set — a real run already turned up `ProductGroup`
+  and `3DModel`, both unjudged.
+
+The three checks also never charge a page twice for one problem: with no blocks
+at all, `structured_data_present` fails while the other two `skip`.
+
+Deliberately not built: OpenGraph, `dateModified`, validation against the
+schema.org vocabulary, microdata and RDFa. Type appropriateness (does the
+declared type match the page's template?) is deferred rather than cut — it needs
+the crawler's clustering, which does not exist yet.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -154,12 +198,12 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B and C's findings against it |
+| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C and D's findings against it |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Section C only so far; Sections A and B are a follow-up.
+cover Sections C and D; Sections A and B are a follow-up.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no

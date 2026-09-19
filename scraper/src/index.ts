@@ -5,6 +5,7 @@ import { runSectionBAudit } from "./section-b/index.ts";
 import { loadRulebook } from "./rulebook.ts";
 import { printCapture, printFindings, printSectionAFailure } from "./print-report.ts";
 import { runSectionCAudit } from "./section-c/index.ts";
+import { runSectionDAudit } from "./section-d/index.ts";
 
 const url = process.argv.slice(2).filter((arg) => !arg.startsWith("--"))[0];
 
@@ -30,3 +31,5 @@ try {
 printFindings("Section B — render", runSectionBAudit(snapshot, interactions, soft404, rulebook));
 
 printFindings("Section C — structure", runSectionCAudit(snapshot, rulebook));
+
+printFindings("Section D — semantics", runSectionDAudit(snapshot, rulebook));
