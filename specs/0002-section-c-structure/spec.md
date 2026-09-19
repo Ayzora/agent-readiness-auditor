@@ -143,4 +143,16 @@ Manual verification: run `pnpm scraper <url>` against a content page (e.g. a new
 
 ## Follow-Ups
 
+- **`structure.extraction_ratio` on pages that are not articles.** Readability
+  looks for one body of prose, so home pages, category pages and product grids
+  score near zero however well built they are — measured after Work Item 04:
+  `anthropic.com` 0.10 and `apple.com` 0.01, against 0.86 for
+  `anthropic.com/news/claude-3-family`. The verdicts are literally correct (both
+  home pages really are mostly menu by character count) but at weight 6 they
+  penalise a page for being a directory. Options: page-type awareness in
+  scoring; rely on the crawler sampling content pages; or gate the check on
+  `isProbablyReaderable`, which returned `false` for both home pages and `true`
+  for the article, and `skip` rather than `fail` when a page is not
+  reader-shaped. The last would change Requirement 12. Deferred until the tool
+  is complete.
 - Tests for Sections A and B, reusing this Spec's test setup. Section B's checks are pure over a snapshot; Section A's also need fake probe results (agent responses, robots.txt data).
