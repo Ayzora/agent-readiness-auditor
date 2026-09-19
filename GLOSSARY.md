@@ -64,3 +64,29 @@ The proportion of a page's raw-HTML text that Readability keeps as main
 content, measured as readable text length over all text length. Low means an
 agent spends most of its reading on menus, footers and other page chrome.
 _Avoid_: noise ratio, content ratio, readability score
+
+**Structured data**:
+Machine-readable facts embedded in a page for a reader that is not human. In
+this project it means JSON-LD; microdata and RDFa are not read.
+_Avoid_: schema, markup, metadata, rich results
+
+**JSON-LD block**:
+One `<script type="application/ld+json">` element and the JSON inside it. A
+page may hold several blocks, and one block may hold several entities.
+_Avoid_: script, snippet, tag
+
+**Entity**:
+One object carrying an `@type`, found at the top level of a block, as a member
+of a block's array, or as a member of its `@graph`. An object nested inside a
+property is part of its parent, not an entity.
+_Avoid_: item, node, object, thing
+
+**Declared type**:
+The normalised value of an entity's `@type`. An array declares several types,
+and a URL form is reduced to its last segment.
+_Avoid_: schema type, category, class
+
+**Known type**:
+A declared type the rulebook's required-properties table has an entry for.
+Only known types are judged; the rest cost a page nothing.
+_Avoid_: supported, covered, recognised, valid
