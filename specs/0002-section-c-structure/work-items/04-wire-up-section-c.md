@@ -2,7 +2,7 @@
 type: Work Item
 title: Wire up Section C
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build

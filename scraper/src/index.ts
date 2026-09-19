@@ -3,11 +3,8 @@ import { soft404Probe } from "./soft-404-probe.ts";
 import { runSectionAAudit } from "./section-a/index.ts";
 import { runSectionBAudit } from "./section-b/index.ts";
 import { loadRulebook } from "./rulebook.ts";
-import {
-  printCapture,
-  printFindings,
-  printSectionAFailure,
-} from "./print-report.ts";
+import { printCapture, printFindings, printSectionAFailure } from "./print-report.ts";
+import { runSectionCAudit } from "./section-c/index.ts";
 
 const url = process.argv.slice(2).filter((arg) => !arg.startsWith("--"))[0];
 
@@ -31,3 +28,5 @@ try {
 }
 
 printFindings("Section B — render", runSectionBAudit(snapshot, interactions, soft404, rulebook));
+
+printFindings("Section C — structure", runSectionCAudit(snapshot, rulebook));

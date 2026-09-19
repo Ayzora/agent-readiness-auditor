@@ -12,13 +12,15 @@ the repo root. Read it before making architectural decisions; this file only
 covers what exists today and the structural rules the spec insists on.
 
 The codebase is at the early stage of that spec's build order: a `scraper`
-package with Section A (Access — "can an agent get the bytes?") and Section B
-(Render — "does the content exist without JavaScript?") implemented, run from
-a CLI against one URL given as an argument, and a `web` package that is still
-an unmodified `create-next-app` scaffold (plus one sample route proving
-routing works). There is no crawler, no scoring engine and no database. The
-rulebook, `scraper/criteria.yaml`, exists and holds every criterion's weight,
-report text and thresholds, but nothing scores with it yet.
+package with Section A (Access — "can an agent get the bytes?"), Section B
+(Render — "does the content exist without JavaScript?") and Section C
+(Structure — "is the raw HTML shaped so an agent can read and navigate it?")
+implemented, run from a CLI against one URL given as an argument, and a
+`web` package that is still an unmodified `create-next-app` scaffold (plus
+one sample route proving routing works). There is no crawler, no scoring
+engine and no database. The rulebook, `scraper/criteria.yaml`, exists and
+holds every criterion's weight, report text and thresholds, but nothing
+scores with it yet.
 `docs/scoring-pipeline.md` records the agreed shape of the scorer before it is
 built.
 
@@ -44,7 +46,7 @@ drift. What varies is the **scope** of the thing being fetched:
   bytes, so the section owns its own Phase 1 probes and exports
   `runSectionAAudit(url, snapshot, rulebook)`. `runSectionXAudit(url)` is the shape for
   site-scope work only.
-- **Page-scope sections** (Section B, and C–F when they land) all need the
+- **Page-scope sections** (Sections B and C, and D–F when they land) all need the
   identical raw-and-rendered pair for a page. That capture therefore lives
   **outside** every section folder — `scraper/src/page-snapshot.ts` and
   `scraper/src/interaction-probe.ts` — and the section receives it as an
@@ -116,6 +118,25 @@ Section A returns `Finding`s too (`access.*` keys), from small check functions
 kept beside the probe whose data they read. Site-scope findings use the site
 root as their `url`.
 
+### Section C
+
+`scraper/src/section-c/` holds two pure checks — `extraction-ratio.ts` and
+`link-navigation.ts` — aggregated by `section-c/index.ts`, which exports
+`runSectionCAudit(snapshot, rulebook)`, synchronous for the same reason
+Section B's is. Keys are `structure.*`.
+
+Both read `snapshot.rawHtml` **only**, and neither ever falls back to
+`renderedHtml`. A page whose text appears only after JavaScript therefore
+fails Section C as well as Section B: that is what an agent receives, so it is
+the intended answer rather than a gap to patch. When `rawHtml` is null both
+return `skip` with `reason: "raw fetch failed"`.
+
+Deliberately not built, and not oversights: heading hierarchy, semantic
+landmarks, descriptive anchor text, every table check, and the Markdown
+conversion noise ratio. `specs/0002-section-c-structure/spec.md` records why.
+`link_navigation` reads HTML attributes only — it cannot see handlers attached
+by script, and the rulebook's text for it must not imply otherwise.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -133,10 +154,27 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Section B's findings against it |
+| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B and C's findings against it |
+| `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
-There is no test suite yet.
+Tests use Node's built-in runner, with no test-framework dependency. They
+cover Section C only so far; Sections A and B are a follow-up.
+
+- `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
+  `PageSnapshot` a pure check reads, so a test needs no network and no
+  browser. It lives outside every section folder because every section's tests
+  will want it.
+- Tests load the real `criteria.yaml` through `loadRulebook()`, so a threshold
+  renamed in the rulebook but not in code fails loudly. Fixtures sit well
+  inside a band, so retuning a cutoff does not break them.
+- A test file drives off a written list of expectations, never a directory
+  listing: a fixture that goes missing must fail its own named test rather
+  than quietly leave the suite. Nothing in a test may catch what a check
+  throws — in `node:test`, throwing is how a test fails.
+- The glob in the `test` script stays **quoted**. Unquoted, the shell expands
+  it and `**` behaves as a single `*`, silently skipping anything not exactly
+  one level under `src`.
 
 ## Environment files
 
