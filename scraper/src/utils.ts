@@ -1,4 +1,4 @@
-import type { Finding, Rulebook } from "./types.ts";
+import type { Finding, PageSnapshot, Rulebook } from "./types.ts";
 
 export function skipped(
   criterionKey: string,
@@ -30,3 +30,28 @@ export function thresholdsFor(rulebook: Rulebook, criterionKey: string): Record<
 
 
 export const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);
+
+// .invalid is reserved by RFC 2606, so a snapshot that leaks into fetching code fails fast.
+const TEST_URL = "https://test.invalid/page";
+
+export function snapshotFrom(
+  rawHtml: string | null,
+  overrides: Partial<PageSnapshot> = {},
+): PageSnapshot {
+  return {
+    url: TEST_URL,
+    resolvedUrl: null,
+    rawHtml,
+    renderedHtml: null,
+    visibleText: null,
+    domText: null,
+    statusCode: null,
+    headers: null,
+    redirectChain: [],
+    browserFinalUrl: null,
+    renderSettled: null,
+    timing: { rawMs: null, renderedMs: null },
+    error: null,
+    ...overrides,
+  };
+}

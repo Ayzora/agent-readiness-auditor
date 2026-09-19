@@ -12,7 +12,7 @@ export function extractionRatio(snapshot: PageSnapshot, rulebook: Rulebook): Fin
     skipped(CRITERION, snapshot.url, reason, evidence);
 
   if (snapshot.rawHtml == null)
-    return skip("Raw fetch failed", { rawHtml: snapshot.rawHtml, error: snapshot.error });
+    return skip("raw fetch failed", { rawHtml: snapshot.rawHtml, error: snapshot.error });
 
   const { document } = parseHTML(snapshot.rawHtml);
   const article = new Readability(document).parse();

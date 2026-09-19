@@ -2,7 +2,7 @@
 type: Work Item
 title: Test setup and Section C tests
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
