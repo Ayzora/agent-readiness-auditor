@@ -59,10 +59,11 @@ export interface Finding {
 
 export interface Criterion {
   key: string;
+  scored?: boolean;
   dimension: string;
   scope: "page" | "site" | "document";
-  weight: number;
-  severity: "critical" | "high" | "medium" | "low";
+  weight?: number;
+  severity: "critical" | "high" | "medium" | "low" | "info";
   effort: "S" | "M" | "L";
   title: string;
   why: string;

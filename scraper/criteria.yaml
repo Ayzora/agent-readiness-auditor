@@ -451,6 +451,23 @@ criteria:
       commonly skipped entirely.
     fix: "Split the document, or publish its key sections as HTML"
 
+  - key: provenance.llms_txt
+    dimension: provenance
+    scope: site
+    scored: false
+    severity: info
+    effort: S
+    thresholds:
+      min_links: 1
+    title: "No llms.txt to guide agents to your content"
+    why: >
+      An llms.txt lists the pages worth an agent's attention in markdown, so an
+      agent spends its budget on your content rather than parsing your
+      navigation. Adoption is real — thousands of sites, generated automatically
+      by several docs platforms, audited by Lighthouse — but no major AI
+      provider commits to reading one, so we report it and do not score it.
+    fix: "Publish /llms.txt with an H1 title and links to your key pages as markdown"
+
 # A gate caps the total score when its criterion fails.
 gates:
   - criterion: access.robots_allows_agents
