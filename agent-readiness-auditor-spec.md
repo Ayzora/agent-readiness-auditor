@@ -90,14 +90,25 @@ All three read the **raw** HTML: structured data injected by JavaScript is not t
 
 **Positioning note on D:** search engines and retrieval systems consume schema.org today, and no AI provider publicly commits to parsing it. That is a difference in degree from `llms.txt`, not in kind, so weight this dimension moderately (5–6 per criterion, below render and structure) and say so in the report.
 
-### E. Action — can an agent transact?
+### E. Action — can an agent transact? *(deferred)*
 
-- Forms: label association, `name` attribute, `autocomplete` tokens, submit reachable without JS, validation messages in DOM  
-- CAPTCHA presence, type, and whether it fires on load or submit  
-- `navigator.modelContext` / WebMCP tool registration and schema quality  
-- Public API discoverability: `/.well-known/`, `/openapi.json`, `/swagger.json`, linked docs  
-- Auth: any non-interactive credential path, or session-cookie only?  
-- Critical funnel (cart / booking / contact) completable without JS-only interaction
+Not specified for build. The dimension keeps its place in the taxonomy and its letter — `action.*` keys, a future `section-e/` — but nothing below is scheduled, and §4's seven dimension scores are six until it returns.
+
+Action splits on a distinction the other dimensions never had to draw. A **reading agent** fetches HTML and extracts content, usually without executing JavaScript; that is what A–D are scored for, and why C and D read raw HTML only. An **acting agent** drives a real browser to complete a task, running JavaScript, clicking and typing. Only the second can transact, so every check here would be scored for it — and none of them could reuse A–D's raw-only rule.
+
+*Cut on purpose:* **form label association and `autocomplete` tokens.** These are accessibility checks that Lighthouse and axe have made for a decade. An acting agent reading a screenshot sees a visual label whether or not a `<label for>` ties it to the control, and one reading the DOM infers from adjacent text. Shipping an accessibility rerun under an agent-readiness banner is the overstatement G positions this tool against.
+
+*Cut on purpose:* **submit reachable without JS.** Aimed at no real consumer — reading agents never submit, acting agents run JavaScript. What it measures is JavaScript dependence, which is `render.text_coverage`'s job.
+
+*Cut on purpose:* **validation messages in the DOM.** Only observable after a form submission this tool will never perform on someone else's site.
+
+*Cut on purpose:* **auth.** Whether a non-interactive credential path exists is not answerable from outside without an account. A login form and a `WWW-Authenticate` header are the whole of what can be seen.
+
+*Cut on purpose:* **CAPTCHA.** Detecting one is easy and reliable — vendors load from a handful of known domains — but the finding is worthless. A CAPTCHA is a deliberate choice the owner already knows they made. The case worth reporting is the challenge the owner did **not** choose knowingly: a bot manager silently challenging agent traffic it deems suspicious. Section A's UA probe already catches that as `access.policy_divergence`, so scoring a CAPTCHA widget on top of it would charge a page twice for one problem.
+
+*Survives, but does not carry a dimension:* public API discoverability (`/.well-known/`, `/openapi.json`, `/swagger.json`, linked docs — where a 200 is not a pass, since a single-page app returns its shell for any path, so the body must parse and declare `openapi` or `swagger`) and `navigator.modelContext` / WebMCP tool registration. Both are cheap and both are real, but both are absent from the large majority of sites. A dimension built from them alone scores a restaurant 0 for not publishing an OpenAPI spec, or skips both and produces no score at all. Choosing between those is a scoring-model decision, not a Section E one.
+
+*Deferred, not cut:* **critical funnel completability** (cart / booking / contact) and whether a page's controls can be **operated** at all — a `div` dropdown with no role, a date picker that answers only mouse events. These carry the real transaction signal, and a human clicks straight past both. Both need §5's structural clustering to know which page is the cart, and the crawler does not exist yet. Pick Section E up after it lands.
 
 ### F. Documents
 

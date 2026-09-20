@@ -5,6 +5,18 @@ thing in the spec, the rulebook, and the code.
 
 ## Terminology
 
+**Reading agent**:
+An agent that fetches a page to extract its content and never acts on it,
+typically without executing JavaScript. The consumer the access, render,
+structure and semantics dimensions are scored for.
+_Avoid_: crawler, bot, scraper
+
+**Acting agent**:
+An agent that drives a real browser session to complete a task on the page,
+executing JavaScript, clicking and typing. The consumer the action dimension
+is scored for.
+_Avoid_: browser agent, user agent, operator
+
 **Dimension**:
 One of the seven areas a site is scored on — access, render, structure,
 semantics, action, documents, provenance. The dimension name is what appears
