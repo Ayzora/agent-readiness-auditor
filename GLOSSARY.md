@@ -18,9 +18,10 @@ is scored for.
 _Avoid_: browser agent, user agent, operator
 
 **Dimension**:
-One of the seven areas a site is scored on — access, render, structure,
-semantics, action, documents, provenance. The dimension name is what appears
-in the rulebook and as the prefix of a criterion key (`render.text_coverage`).
+One of the seven areas a site is measured on — access, render, structure,
+semantics, action, documents, provenance. Six carry a score; provenance is
+observational. The dimension name is what appears in the rulebook and as the
+prefix of a criterion key (`render.text_coverage`).
 _Avoid_: category, area, pillar
 
 **Section**:
@@ -66,6 +67,12 @@ _Avoid_: config, rules file
 A criterion that caps the total score regardless of other results, modelling
 the fact that downstream quality is worthless behind an upstream block.
 _Avoid_: blocker, hard fail
+
+**Unscored criterion**:
+A criterion that is measured and reported but carries no weight, because what
+it asks about is not adopted widely enough to charge a site for. Marked
+`scored: false` in the rulebook.
+_Avoid_: informational, optional, bonus
 
 **Text coverage ratio**:
 The proportion of a page's text present without JavaScript, measured as raw
