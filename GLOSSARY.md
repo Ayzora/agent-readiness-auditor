@@ -47,8 +47,9 @@ input for every page-scope section.
 _Avoid_: fetch, crawl, page
 
 **Finding**:
-One check, one page, one outcome. Carries the criterion key, status and
-evidence only — never weight, title or fix text, which come from the rulebook.
+One check, one subject, one outcome — the subject being a page, the site, or a
+linked document. Carries the criterion key, status and evidence only — never
+weight, title or fix text, which come from the rulebook.
 _Avoid_: result, issue, error
 
 **Evidence**:
@@ -102,3 +103,26 @@ _Avoid_: schema type, category, class
 A declared type the rulebook's required-properties table has an entry for.
 Only known types are judged; the rest cost a page nothing.
 _Avoid_: supported, covered, recognised, valid
+
+**Linked document**:
+A non-HTML file a page links to for a reader to open — in this project a PDF
+only. Discovered from a page's links, but judged as its own unit, once per
+run, however many pages link it.
+_Avoid_: attachment, asset, file, download
+
+**Key document**:
+A linked document whose anchor text or filename matches the rulebook's
+key-topic table — pricing, specs, terms, policies and their kin. Only key
+documents are asked whether their content also exists as HTML.
+_Avoid_: important document, primary document
+
+**Document coverage ratio**:
+The proportion of a document's text that also appears in the site's HTML,
+measured one-directionally as the fraction of the document's word sequences
+found in the captured pages. Low means the facts exist only inside the file.
+_Avoid_: similarity, duplication, match score
+
+**Text layer**:
+The extractable text inside a PDF. A PDF without one is an image of text,
+readable by nobody who is not looking at it.
+_Avoid_: OCR, raw text, content
