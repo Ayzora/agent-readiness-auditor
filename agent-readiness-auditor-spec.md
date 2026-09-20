@@ -112,9 +112,25 @@ Action splits on a distinction the other dimensions never had to draw. A **readi
 
 ### F. Documents
 
-- PDFs: text layer vs. scanned image, tagged structure, page count, size  
-- Key documents (pricing, specs, policies) PDF-only with no HTML equivalent  
-- Documents behind login or form-fill
+Five checks over the site's linked PDFs, discovered from the **raw** HTML of every page captured in a run, deduplicated by URL and fetched once each however many pages link them. The finding's subject is the file, not the page that linked it.
+
+- **`documents.html_equivalent`** — the heavyweight. A **key document** (pricing, specs, terms, policies — matched against a keyword table in `criteria.yaml`) whose content cannot be found in the site's HTML. Measured as the **document coverage ratio**: the fraction of the document's 8-word sequences present in the run's captured HTML, one-directionally, with sequences shared by every page dropped so navigation cannot manufacture a match
+- **`documents.text_layer`** — extractable characters per page. A scan is a photograph of text and readable by nobody
+- **`documents.reachable`** — did PDF bytes arrive? A login page, a 404, an edge challenge and a timeout all leave an agent with no document, so the check does not branch on which
+- **`documents.tagged_structure`** — does the file declare headings and reading order, or does its text arrive in storage order
+- **`documents.size`** — bytes and page count past the point an agent skips the file
+
+The dimension's claim is that facts locked inside a PDF are facts an agent will not have: retrieval systems handle HTML far better, and many reading agents fetch a page without following its document links. The report must say that PDFs *are* readable by some agents, so the cost is unreliability rather than impossibility. A site linking no documents scores this dimension **N/A**, never 0, and never earns a pass for the absence.
+
+*Cut on purpose:* **Office formats and CSV.** Discovery is format-neutral, but inspection is not — a `.docx` is a zip of XML with nothing in common with a PDF — so each format is its own extraction path and failure set, for content that is rare on public sites.
+
+*Cut on purpose:* **a taxonomy of fetch failures.** Every branch produced the same verdict, so the cause lives in the evidence instead.
+
+*Cut on purpose:* **form-fill gating.** "Download our guide" behind a lead-capture form links an HTML landing page, not a `.pdf`, so discovery cannot see it.
+
+*Cut on purpose:* **judging PDFs on a third party's domain**, which are not the audited owner's to fix, and **OCR** of a scan, which would repair the defect rather than report it.
+
+*Weakened until §5 lands:* `html_equivalent` can only compare against pages captured in the run, so auditing a single URL fails a pricing PDF even when `/pricing` exists. The crawler's ~40 pages are what make the comparison honest.
 
 ### G. Provenance — low weight, high credibility
 

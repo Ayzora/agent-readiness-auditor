@@ -1,4 +1,4 @@
-import type { Finding, PageSnapshot, Rulebook } from "./types.ts";
+import type { DocumentCapture, Finding, PageSnapshot, Rulebook } from "./types.ts";
 
 export function skipped(
   criterionKey: string,
@@ -49,6 +49,17 @@ export function requiredPropertiesFor(
   });
 }
 
+// What counts as a key document is a judgement call, so the table is the
+// rulebook's. Reading it from a criterion that does not carry one throws.
+export function keyTopicsFor(rulebook: Rulebook, criterionKey: string): string[] {
+  const topics = rulebook.criteria.find(
+    (criterion) => criterion.key === criterionKey,
+  )?.key_topics;
+  if (!topics) throw new Error(`criteria.yaml has no key_topics for ${criterionKey}`);
+
+  return topics;
+}
+
 export const Clamp = (num: number) => Math.min(Math.max(num, 0), 1);
 
 // .invalid is reserved by RFC 2606, so a snapshot that leaks into fetching code fails fast.
@@ -71,6 +82,29 @@ export function snapshotFrom(
     browserFinalUrl: null,
     renderSettled: null,
     timing: { rawMs: null, renderedMs: null },
+    error: null,
+    ...overrides,
+  };
+}
+
+// The DocumentCapture a Section F check reads, so a test needs no network and no PDF.
+export function documentFrom(overrides: Partial<DocumentCapture> = {}): DocumentCapture {
+  return {
+    url: "https://test.invalid/files/document.pdf",
+    anchorText: null,
+    linkedFrom: [TEST_URL],
+    isKeyDocument: false,
+    keyTopic: null,
+    statusCode: 200,
+    finalUrl: "https://test.invalid/files/document.pdf",
+    contentType: "application/pdf",
+    bytes: 100_000,
+    fetched: true,
+    isPdf: true,
+    text: "",
+    pageCount: 1,
+    isTagged: true,
+    taggedBy: "markInfo",
     error: null,
     ...overrides,
   };

@@ -292,7 +292,7 @@ defaults:
 criteria:
   - key: render.text_coverage      # matches finding.criterionKey exactly
     dimension: render              # which of the seven scores it feeds
-    scope: page                    # page | site
+    scope: page                    # page | site | document
     weight: 9
     severity: critical
     effort: L                      # S/M/L — the ÷ effort in the ROI sort
@@ -360,6 +360,36 @@ access.policy_divergence       access.sitemap_present
 access.pay_per_crawl           access.sitemap_freshness
 access.baseline_mismatch
 ```
+
+Section F, **document-scoped** — emitted once per linked PDF, not per page:
+
+```
+documents.reachable            documents.tagged_structure
+documents.html_equivalent      documents.size
+documents.text_layer
+```
+
+A document finding's `url` is the file's own, so step 9 counts documents
+affected and step 12 diffs the same file across runs. A document never opened
+contributes no findings at all rather than four skips, and
+`documents.html_equivalent` is emitted only for key documents.
+
+## Dimensions that do not apply
+
+A site linking no PDFs produces no Section F findings, so the documents
+dimension sums `0 earned ÷ 0 available` — which is not a score, and must not be
+rendered as one.
+
+```
+documents: earned = 0, available = 0  →  N/A, not 0
+```
+
+The report says *"Documents — not applicable: no linked documents found"*, and
+the total is computed across the dimensions that produced a score. Scoring it 0
+would mark a restaurant down for not publishing a price list PDF; awarding a
+pass for the absence would score a restaurant and a law firm identically. This
+generalises: any dimension whose criteria are all absent or skipped is N/A, and
+`documents` is simply the first one where it happens routinely.
 
 ## Open decisions
 

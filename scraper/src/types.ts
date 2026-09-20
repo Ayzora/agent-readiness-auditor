@@ -60,7 +60,7 @@ export interface Finding {
 export interface Criterion {
   key: string;
   dimension: string;
-  scope: "page" | "site";
+  scope: "page" | "site" | "document";
   weight: number;
   severity: "critical" | "high" | "medium" | "low";
   effort: "S" | "M" | "L";
@@ -70,6 +70,8 @@ export interface Criterion {
   thresholds?: Record<string, number>;
   // semantics.required_properties only: type name -> the property paths it must carry.
   required_properties?: Record<string, string[]>;
+  // documents.html_equivalent only: the terms that make a linked document a key document.
+  key_topics?: string[];
 }
 
 export interface Gate {
@@ -167,4 +169,36 @@ export interface Soft404Probe {
   statusCode: number | null;
   fingerprint: string | null;
   error: string | null;
+}
+
+// One linked document the probe attempted. Fields go null and `error` is populated
+// rather than throwing, so one dead document cannot cost the run the other nine.
+export interface DocumentCapture {
+  url: string;
+  anchorText: string | null;
+  // Every page this run that linked it; the document is fetched and judged once.
+  linkedFrom: string[];
+  isKeyDocument: boolean;
+  keyTopic: string | null;
+  statusCode: number | null;
+  finalUrl: string | null;
+  contentType: string | null;
+  bytes: number | null;
+  // false when the probe chose not to fetch: over the size ceiling, or out of budget.
+  fetched: boolean;
+  // Decided by the leading %PDF- bytes, never by the extension or the header.
+  isPdf: boolean;
+  text: string | null;
+  pageCount: number | null;
+  isTagged: boolean | null;
+  taggedBy: "markInfo" | "structTree" | null;
+  error: string | null;
+}
+
+// `discovered` counts every candidate found, so a report never implies the
+// capped fetch list was all of them.
+export interface DocumentProbe {
+  discovered: number;
+  offDomain: number;
+  documents: DocumentCapture[];
 }

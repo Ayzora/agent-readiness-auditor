@@ -355,6 +355,102 @@ criteria:
       meant to remove.
     fix: "Add the missing properties named in this report to each entity"
 
+  # scope: document — the subject is one linked file, fetched once per run
+  # however many pages link it, so its finding's url is the file's own.
+  - key: documents.reachable
+    dimension: documents
+    scope: document
+    weight: 7
+    severity: high
+    effort: S
+    title: "This document could not be fetched"
+    why: >
+      An agent that follows this link receives a login page, an error or
+      nothing at all, so the document might as well not be published.
+    fix: "Make the document publicly fetchable, or remove the link"
+
+  - key: documents.html_equivalent
+    dimension: documents
+    scope: document
+    weight: 8
+    severity: high
+    effort: M
+    thresholds:
+      fail: 0.2 # share of the document's text found in the site's HTML
+      warn: 0.6
+    # The terms that make a linked document a key document, matched as
+    # lowercase substrings against its anchor text and filename. Only key
+    # documents are asked whether their content also exists as HTML.
+    key_topics:
+      [
+        pricing,
+        price,
+        rates,
+        tariff,
+        spec,
+        datasheet,
+        terms,
+        privacy,
+        policy,
+        warranty,
+        returns,
+        shipping,
+        menu,
+        brochure,
+        catalogue,
+      ]
+    title: "Key information is only available as a PDF"
+    why: >
+      Retrieval systems read HTML far better than PDF, and many agents fetch a
+      page without ever following its document links, so facts that exist only
+      inside a file are facts an agent will not have. PDFs are readable by
+      some agents, so this is unreliability rather than impossibility.
+    fix: "Publish this content as a web page, and keep the PDF as a download"
+
+  - key: documents.text_layer
+    dimension: documents
+    scope: document
+    weight: 7
+    severity: high
+    effort: L
+    thresholds:
+      min_chars_per_page: 50 # below this the pages are images, not text
+      warn_chars_per_page: 200
+    title: "This document is a scan with no readable text"
+    why: >
+      The file contains an image of text rather than text, so nothing can read
+      it — no agent, no search engine and no screen reader.
+    fix: "Republish the document with a real text layer, or publish the content as HTML"
+
+  - key: documents.tagged_structure
+    dimension: documents
+    scope: document
+    weight: 3
+    severity: low
+    effort: M
+    title: "This document declares no headings or reading order"
+    why: >
+      Without tagging, extracted text arrives in whatever order the file
+      happens to store it, so columns interleave and headings vanish.
+    fix: "Export the document as a tagged PDF"
+
+  - key: documents.size
+    dimension: documents
+    scope: document
+    weight: 2
+    severity: low
+    effort: M
+    thresholds:
+      max_bytes_warn: 5242880 # 5 MB
+      max_bytes_fail: 20971520 # 20 MB
+      max_pages_warn: 50
+      max_pages_fail: 200
+    title: "This document is large enough that agents will skip it"
+    why: >
+      A very large file costs an agent most of its budget to read, so it is
+      commonly skipped entirely.
+    fix: "Split the document, or publish its key sections as HTML"
+
 # A gate caps the total score when its criterion fails.
 gates:
   - criterion: access.robots_allows_agents

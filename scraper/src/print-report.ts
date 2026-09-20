@@ -1,4 +1,10 @@
-import type { Finding, FindingStatus, InteractionCapture, PageSnapshot } from "./types.ts";
+import type {
+  DocumentProbe,
+  Finding,
+  FindingStatus,
+  InteractionCapture,
+  PageSnapshot,
+} from "./types.ts";
 
 const STATUS_ORDER = ["fail", "warn", "skip", "pass"] as const;
 
@@ -25,6 +31,23 @@ export function printCapture(snapshot: PageSnapshot, interactions: InteractionCa
   if (snapshot.error) console.log(`  error           ${snapshot.error}`);
 }
 
+// Discovered versus fetched, so the report never implies every document was examined.
+export function printDocumentCapture(probe: DocumentProbe): void {
+  const fetched = probe.documents.filter((document) => document.fetched).length;
+  const key = probe.documents.filter((document) => document.isKeyDocument).length;
+
+  console.log("\n=== Documents ===\n");
+  console.log(`  discovered      ${probe.discovered} (${key} key, ${probe.offDomain} off-domain)`);
+  console.log(`  fetched         ${fetched} of ${probe.documents.length} attempted`);
+
+  for (const document of probe.documents) {
+    const detail = document.fetched
+      ? `${document.isPdf ? "pdf" : "not a pdf"}, ${document.pageCount ?? "—"} pages, ${document.bytes ?? "—"} bytes`
+      : `not fetched — ${document.error ?? "—"}`;
+    console.log(`    ${document.url}  (${detail})`);
+  }
+}
+
 export function printSectionAFailure(error: unknown): void {
   console.log("\n=== Section A — access ===\n");
   console.log(`  failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -34,13 +57,20 @@ export function printFindings(title: string, findings: Finding[]): void {
   const counts = STATUS_ORDER.map((status) => `${countOf(findings, status)} ${status}`).join(", ");
   console.log(`\n=== ${title} === (${findings.length} findings: ${counts})\n`);
 
+  // Document findings name a file each, so the key alone would not say which.
+  const subjects = new Set(findings.map((finding) => finding.url));
+
   for (const status of STATUS_ORDER) {
     const group = findings.filter((finding) => finding.status === status);
     if (group.length === 0) continue;
 
     console.log(`  ${status.toUpperCase()}`);
     for (const finding of group) {
-      console.log(`    ${finding.criterionKey}`);
+      console.log(
+        subjects.size > 1
+          ? `    ${finding.criterionKey}  ${finding.url}`
+          : `    ${finding.criterionKey}`,
+      );
 
       const evidence = formatEvidence(finding.evidence);
       if (evidence) console.log(`      ${evidence}`);

@@ -44,7 +44,7 @@ Running `pnpm scraper <url>` prints a Section F block after Section D, listing f
 5. Documents are discovered from `snapshot.rawHtml` only, for every page captured in the run. `renderedHtml` is never read, consistent with Sections C and D. [L9]
 6. A candidate is an `<a href>` whose path ends `.pdf`, matched case-insensitively with any query string ignored, resolved against the page's URL to an absolute URL. [L9]
 7. Only documents on the site's own registrable domain are fetched and judged. `cdn.example.com` and `files.example.co.uk` count as the site's own; a PDF on a third party's domain is recorded in evidence and never fetched. [L9]
-8. Candidates are deduplicated by resolved URL before anything is fetched, so one file linked from forty pages is fetched once and judged once. [L4] [L9]
+8. Candidates are deduplicated before anything is fetched, so one file linked from forty pages is fetched once and judged once. The identity is the resolved URL **without its query string**, so a cache-busting `?v=2` does not cost the site a second download; the first URL seen is the one fetched, because a query can carry something the server needs. [L4] [L9]
 9. Each capture records every page it was linked from. Evidence carries at most the first five, plus the total count. [L4]
 
 ### Fetch budget and politeness
@@ -59,10 +59,10 @@ Running `pnpm scraper <url>` prints a Section F block after Section D, listing f
 
 ### Capture shape
 
-17. `document-probe.ts` exports an async probe returning `DocumentCapture[]`, where a `DocumentCapture` carries: `url`, `anchorText`, `linkedFrom` (page URLs), `isKeyDocument`, `statusCode`, `finalUrl`, `contentType`, `bytes`, `fetched`, `isPdf`, `text`, `pageCount`, `isTagged`, and `error`. [L11]
+17. `document-probe.ts` exports an async probe returning a `DocumentProbe` — `{ discovered, offDomain, documents }` — where `discovered` counts every candidate found and `documents` holds the captures actually attempted, so Requirement 16's counts survive the cap. A `DocumentCapture` carries: `url`, `anchorText`, `linkedFrom` (page URLs), `isKeyDocument`, `keyTopic`, `statusCode`, `finalUrl`, `contentType`, `bytes`, `fetched`, `isPdf`, `text`, `pageCount`, `isTagged`, `taggedBy`, and `error`. [L11]
 18. PDF parsing happens in the probe, not in a check. The checks read only the parsed fields. [L11] [L12]
 19. Parsing uses `pdfjs-dist`: page text from `getTextContent()` joined per page, `numPages` for the page count, and tagging from `getMarkInfo()` with a structure-tree lookup as fallback. The worker is disabled explicitly for Node. [L12]
-20. A document that is a key document is flagged during discovery, by matching the criterion's `key_topics` entries as lowercase substrings against the anchor text and the filename. [L7] [L13]
+20. A document that is a key document is flagged during discovery, by matching the criterion's `key_topics` entries as lowercase substrings against the anchor's label and the filename. The label is the anchor's text, falling back to its image's `alt`, then `aria-label`, then `title` — an icon link carries no text, and its `alt` is the only thing naming what the document is. [L7] [L13]
 
 ### Emission rules
 
@@ -83,7 +83,7 @@ Running `pnpm scraper <url>` prints a Section F block after Section D, listing f
 
 30. The check runs only for documents flagged as key documents. A non-key document returns `skip` with `reason: "not a key document"`. [L7]
 31. The **Document coverage ratio** is computed one-directionally: normalise the document's text (lowercase, collapse whitespace, strip punctuation), cut it into overlapping 8-word sequences, and score the fraction of those sequences present in the combined sequence set built the same way from the raw text of every page captured this run. [L8]
-32. Sequences appearing on **every** captured page are excluded from both sides before scoring, so shared navigation and footer text cannot manufacture a match. [L8]
+32. Sequences appearing on **every** captured page are excluded from both sides before scoring, so shared navigation and footer text cannot manufacture a match. The exclusion applies only from three captured pages upward: below that, "on every page" would delete the corpus rather than its chrome. [L8]
 33. Verdicts: below the `fail` threshold (≈0.2) → `fail`; between `fail` and `pass` (≈0.6) → `warn`; at or above `pass` → `pass`. Thresholds live in the rulebook. [L8]
 34. Page text for the comparison corpus is derived from each snapshot's `rawHtml`. Pages whose `rawHtml` is `null` are excluded from the corpus. [L8]
 35. When the corpus is empty — no page in the run produced raw HTML — the check returns `skip` with `reason: "no HTML captured"`. [L8]
@@ -205,5 +205,7 @@ Probe-level verification is manual: run `pnpm scraper <url>` against a page link
 - **The 10-document cap interacts with the crawler** [L9]. Ten documents across 40 sampled pages may be too few to be representative once the crawler exists.
 
 ## Notes
+
+`printFindings` now names a finding's subject whenever a section's findings cover more than one — document findings each name a file, so the criterion key alone would not say which. Page-scope sections print unchanged. [L4]
 
 `GLOSSARY.md` was updated during the interview: **Linked document**, **Key document**, **Document coverage ratio** and **Text layer** were added, and **Finding** was widened from "one check, one page, one outcome" to "one check, one subject, one outcome — the subject being a page, the site, or a linked document". [L4] [L8] [L13]

@@ -16,7 +16,9 @@ package with Section A (Access — "can an agent get the bytes?"), Section B
 (Render — "does the content exist without JavaScript?"), Section C
 (Structure — "is the raw HTML shaped so an agent can read and navigate it?")
 and Section D (Semantics — "are the page's facts declared machine-readably?")
-implemented, run from a CLI against one URL given as an argument, and a
+implemented, Section F (Documents — "are the facts an agent needs locked
+inside a linked file?") implemented, run from a CLI against one URL given as an
+argument, and a
 `web` package that is still an unmodified `create-next-app` scaffold (plus
 one sample route proving routing works). There is no crawler, no scoring
 engine and no database. The rulebook, `scraper/criteria.yaml`, exists and
@@ -181,6 +183,75 @@ schema.org vocabulary, microdata and RDFa. Type appropriateness (does the
 declared type match the page's template?) is deferred rather than cut — it needs
 the crawler's clustering, which does not exist yet.
 
+### Section F
+
+`scraper/src/section-f/` holds five pure checks over the run's linked PDFs —
+`reachable.ts`, `html-equivalent.ts`, `text-layer.ts`, `tagged-structure.ts`
+and `size.ts` — plus `sequences.ts`, the word-sequence helper
+`html_equivalent` measures with. Aggregated by `section-f/index.ts`, which
+exports `runSectionFAudit(snapshots, documents, rulebook)`, synchronous for the
+reason Sections B, C and D are. Keys are `documents.*`.
+
+Section F is the first section whose **subject is not a page**. A finding's
+`url` is the document's own, criteria carry `scope: document`, and one file
+linked from forty pages is fetched once and judged once — so `Finding` means
+"one check, one subject, one outcome", the subject being a page, the site or a
+document. `printFindings` names the subject whenever a section's findings cover
+more than one.
+
+The dimension's heavyweight is `documents.html_equivalent`: a **key document**
+— pricing, specs, terms, policies, matched against the `key_topics` table on
+that criterion and read through `keyTopicsFor` — whose text cannot be found in
+the HTML captured this run. It is measured one-directionally, as the share of
+the document's 8-word sequences present in the pages' raw text, because the two
+texts are wildly different lengths and a symmetric similarity would punish a
+page that genuinely carries the document's facts. Sequences shared by every
+captured page are dropped first, but only from three pages upward — below that,
+"on every page" would delete the corpus rather than its chrome.
+
+Three rules the section is built around, recorded in
+`specs/0004-section-f-documents/spec.md`:
+
+- **A document that was never opened produces no findings but `reachable`.**
+  Absent means we have no data and therefore no opinion; `skip` means we opened
+  the file and the question does not apply, as for a non-key document under
+  `html_equivalent`. Four skips per dead document would flood a report with
+  rows that say nothing.
+- **`documents.reachable` does not branch on why.** A login page, a 404, an
+  edge challenge and a timeout all leave an agent with no document, so the
+  check asks only whether the bytes began `%PDF-` and the evidence carries the
+  cause. A branch-per-cause taxonomy was designed and rejected: every branch
+  gave the same verdict.
+- **A document the key-topic table has no opinion about costs the site
+  nothing.** A manual, a datasheet or a printable form has no HTML equivalent
+  by nature, so `html_equivalent` skips it — the same principle as Section D's
+  unknown types.
+
+A site linking no PDFs scores the dimension **N/A**, never 0, and never earns a
+pass for the absence. `docs/scoring-pipeline.md` records the arithmetic.
+
+Deliberately not built: Office formats and CSV (each is its own extraction
+path), OCR of a scan, form-fill gating (the link is to an HTML landing page, so
+discovery cannot see it), and judging PDFs on a third party's domain.
+
+### Section F's probe is Phase 1, outside the section
+
+`scraper/src/document-probe.ts` discovers the PDF links across the captured
+snapshots, fetches them under caps, and parses them with `pdfjs-dist`. Parsing
+lives there rather than in a check because it is I/O-shaped work with its own
+failure modes, and because that is what lets a check test build a
+`DocumentCapture` literal and skip the PDF library entirely. Like the capture
+layer and unlike Section A's older probes, it **never throws**: the fetches are
+sequential, so one timeout on document three must not cost the run documents
+four to ten.
+
+Its caps are politeness constraints, not tuning knobs, and they stay in code
+for the same reason the rate-limit ramp does: at most 10 documents per run,
+fetched one at a time, a 25 MB ceiling checked from `Content-Length` before any
+body is downloaded, 15s per document and 90s overall, and only documents on the
+site's own registrable domain. Treat a change to them as a safety-sensitive
+change.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -198,17 +269,19 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C and D's findings against it |
+| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C, D and F's findings against it |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Sections C and D; Sections A and B are a follow-up.
+cover Sections C, D and F, plus Section F's link discovery; Sections A and B
+are a follow-up.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
   browser. It lives outside every section folder because every section's tests
-  will want it.
+  will want it. `documentFrom(overrides)` beside it does the same for Section
+  F's `DocumentCapture`, so no test needs a PDF file or the PDF library.
 - Tests load the real `criteria.yaml` through `loadRulebook()`, so a threshold
   renamed in the rulebook but not in code fails loudly. Fixtures sit well
   inside a band, so retuning a cutoff does not break them.
