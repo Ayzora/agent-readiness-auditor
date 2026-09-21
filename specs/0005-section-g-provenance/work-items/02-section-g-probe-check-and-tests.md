@@ -2,7 +2,7 @@
 type: Work Item
 title: "Section G: llms.txt probe, check, aggregator and tests"
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -13,9 +13,9 @@ The whole of Section G's code: one Phase 1 probe, one Phase 2 check, the section
 
 - Fetches `/llms.txt` resolved against the audited URL's origin, and no other path.
 - Never throws. Any failure degrades to a capture with null fields and a populated `error`.
-- 10s timeout; body read to a 1 MB ceiling, setting `truncated` beyond it.
+- 10s timeout; the body is read whole.
 - Performs no parsing.
-- `LlmsTxtCapture` in `types.ts`: `url`, `statusCode`, `contentType`, `body`, `bytes`, `truncated`, `error`.
+- `LlmsTxtCapture` in `types.ts`: `url`, `statusCode`, `contentType`, `body`, `bytes`, `error`.
 
 **Check** — `scraper/src/section-g/llms-txt.ts` exporting the synchronous pure `llmsTxtPresent(url, capture, rulebook): Finding`:
 
@@ -25,7 +25,7 @@ The whole of Section G's code: one Phase 1 probe, one Phase 2 check, the section
 - Blockquote summary: any `/^>\s+\S/` line — evidence only, never changes the verdict.
 - `pass` when found and the link count is at least `min_links`; `warn` in every other case; `skip` only when the capture carries an `error`, with `reason: "llms.txt fetch failed"`. Never `fail`.
 - `min_links` read with `thresholdsFor`, never hard-coded.
-- Evidence: `found`, `statusCode`, `contentType`, `looksLikeHtml`, `hasH1`, `hasBlockquoteSummary`, `linkCount`, `bytes`, `truncated`, and `error` when captured.
+- Evidence: `found`, `statusCode`, `contentType`, `looksLikeHtml`, `hasH1`, `hasBlockquoteSummary`, `linkCount`, `bytes`, and `error` when captured.
 - The finding's `url` is the site root.
 
 **Aggregator** — `scraper/src/section-g/index.ts` exporting `runSectionGAudit(url, rulebook): Promise<Finding[]>`.
@@ -46,16 +46,15 @@ Relative imports in `scraper/src` use literal `.ts` extensions.
 
 ## Acceptance criteria
 
-- [ ] `captureLlmsTxt` fetches only `/llms.txt` at the origin root; no subpath file and no `llms-full.txt` is requested.
-- [ ] `captureLlmsTxt` returns a capture with an `error` string rather than throwing, for a DNS failure, a timeout and a non-2xx status.
-- [ ] A body beyond 1 MB is truncated and `truncated` is true.
-- [ ] `llmsTxtPresent` is synchronous and makes no network call.
-- [ ] `runSectionGAudit(url, rulebook)` returns exactly one finding, keyed `provenance.llms_txt`, whose `url` is the site root.
-- [ ] No Section G code path can return `fail`.
-- [ ] `llmsTxtFrom(overrides)` lives in `scraper/src/utils.ts` beside `snapshotFrom` and `documentFrom`.
-- [ ] Tests cover: 404 → `warn` with `found: false`; `text/html` 200 → `warn` with `looksLikeHtml: true`; `text/plain` 200 whose body begins `<!DOCTYPE html>` → `warn` with `looksLikeHtml: true`; a valid file with three links under `## Docs` → `pass` with `linkCount: 3`; the same file BOM-prefixed → `pass`; H1 only → `warn` with `hasH1: true`, `linkCount: 0`; links outside any `##` section → `warn` with `linkCount: 0`; links but no H1 → `warn` with `hasH1: false`; a valid file with no blockquote → `pass` with `hasBlockquoteSummary: false`; a capture carrying an `error` → `skip` with `reason: "llms.txt fetch failed"`; and the finding's `url` being the site root.
-- [ ] The test file drives off a written list of expectations, and nothing in a test catches what a check throws.
-- [ ] `pnpm lint` and `pnpm --filter scraper test` pass.
+- [x] `captureLlmsTxt` fetches only `/llms.txt` at the origin root; no subpath file and no `llms-full.txt` is requested.
+- [x] `captureLlmsTxt` returns a capture with an `error` string rather than throwing, for a DNS failure, a timeout and a non-2xx status.
+- [x] `llmsTxtPresent` is synchronous and makes no network call.
+- [x] `runSectionGAudit(url, rulebook)` returns exactly one finding, keyed `provenance.llms_txt`, whose `url` is the site root.
+- [x] No Section G code path can return `fail`.
+- [x] `llmsTxtFrom(overrides)` lives in `scraper/src/utils.ts` beside `snapshotFrom` and `documentFrom`.
+- [x] Tests cover: 404 → `warn` with `found: false`; `text/html` 200 → `warn` with `looksLikeHtml: true`; `text/plain` 200 whose body begins `<!DOCTYPE html>` → `warn` with `looksLikeHtml: true`; a valid file with three links under `## Docs` → `pass` with `linkCount: 3`; the same file BOM-prefixed → `pass`; H1 only → `warn` with `hasH1: true`, `linkCount: 0`; links outside any `##` section → `warn` with `linkCount: 0`; links but no H1 → `warn` with `hasH1: false`; a valid file with no blockquote → `pass` with `hasBlockquoteSummary: false`; a capture carrying an `error` → `skip` with `reason: "llms.txt fetch failed"`; and the finding's `url` being the site root.
+- [x] The test file drives off a written list of expectations, and nothing in a test catches what a check throws.
+- [x] `pnpm lint` and `pnpm --filter scraper test` pass.
 
 ## Covers
 

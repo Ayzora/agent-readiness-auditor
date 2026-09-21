@@ -203,3 +203,13 @@ export interface DocumentProbe {
   offDomain: number;
   documents: DocumentCapture[];
 }
+
+
+export interface LlmsTxtCapture {
+  url: string, 
+  statusCode: number | null, 
+  contentType: string | null, 
+  body: string | null, 
+  bytes: number | null, 
+  error: string | null
+ }

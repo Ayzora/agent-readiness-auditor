@@ -1,4 +1,4 @@
-import type { DocumentCapture, Finding, PageSnapshot, Rulebook } from "./types.ts";
+import type { DocumentCapture, Finding, LlmsTxtCapture, PageSnapshot, Rulebook } from "./types.ts";
 
 export function skipped(
   criterionKey: string,
@@ -15,7 +15,9 @@ export function percentage(part: number, whole: number): number {
 
 // Reading a threshold the rulebook doesn't define throws instead of returning undefined.
 export function thresholdsFor(rulebook: Rulebook, criterionKey: string): Record<string, number> {
-  const thresholds = rulebook.criteria.find((criterion) => criterion.key === criterionKey)?.thresholds;
+  const thresholds = rulebook.criteria.find(
+    (criterion) => criterion.key === criterionKey,
+  )?.thresholds;
   if (!thresholds) throw new Error(`criteria.yaml has no thresholds for ${criterionKey}`);
 
   return new Proxy(thresholds, {
@@ -26,8 +28,6 @@ export function thresholdsFor(rulebook: Rulebook, criterionKey: string): Record<
     },
   });
 }
-
-
 
 // The per-type table is the rulebook's, not the check's, for the same reason
 // thresholds are. Reading a type the table does not define throws.
@@ -52,9 +52,7 @@ export function requiredPropertiesFor(
 // What counts as a key document is a judgement call, so the table is the
 // rulebook's. Reading it from a criterion that does not carry one throws.
 export function keyTopicsFor(rulebook: Rulebook, criterionKey: string): string[] {
-  const topics = rulebook.criteria.find(
-    (criterion) => criterion.key === criterionKey,
-  )?.key_topics;
+  const topics = rulebook.criteria.find((criterion) => criterion.key === criterionKey)?.key_topics;
   if (!topics) throw new Error(`criteria.yaml has no key_topics for ${criterionKey}`);
 
   return topics;
@@ -105,6 +103,22 @@ export function documentFrom(overrides: Partial<DocumentCapture> = {}): Document
     pageCount: 1,
     isTagged: true,
     taggedBy: "markInfo",
+    error: null,
+    ...overrides,
+  };
+}
+
+
+
+const VALID_LLMS_TXT = "# Test Site\n\n> A summary.\n\n## Docs\n- [Quickstart](/quickstart)\n";
+
+export function llmsTxtFrom(overrides: Partial<LlmsTxtCapture> = {}): LlmsTxtCapture {
+  return {
+    url: "https://test.invalid/llms.txt",
+    statusCode: 200,
+    contentType: "text/plain; charset=utf-8",
+    body: VALID_LLMS_TXT,
+    bytes: Buffer.byteLength(VALID_LLMS_TXT),
     error: null,
     ...overrides,
   };

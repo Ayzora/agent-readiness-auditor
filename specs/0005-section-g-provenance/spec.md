@@ -59,8 +59,8 @@ Running `pnpm scraper <url>` prints that block after Section F. Section G adds t
 14. The probe fetches `/llms.txt` resolved against the audited URL's origin, and no other path. Subpath files (`/docs/llms.txt`), which v2 permits, are not fetched. [L7]
 15. `llms-full.txt` is never fetched, and is not recorded in evidence. v2 does not define it. [L4] [L7]
 16. The probe **never throws**. A DNS failure, a timeout, a non-2xx status or an unreadable body degrades to a capture with null fields and a populated `error` string, following the capture layer's discipline rather than Section A's older probes'. [L7]
-17. Timeout is 10s, matching `section-a/sitemap.ts`. The body is read to a 1 MB ceiling and truncated beyond it. Both are facts rather than judgement calls and stay in code, not the rulebook. [L7]
-18. `LlmsTxtCapture` carries: `url`, `statusCode`, `contentType`, `body`, `bytes`, `truncated`, `error`. [L7]
+17. Timeout is 10s, matching `section-a/sitemap.ts`, and stays in code rather than the rulebook because it is a fact rather than a judgement call. The body is read whole. A 1 MB ceiling with a `truncated` flag was specified and then cut during implementation: an `llms.txt` large enough to hit it is rare, and a ceiling without a flag would silently under-count links, so the two were dropped together.
+18. `LlmsTxtCapture` carries: `url`, `statusCode`, `contentType`, `body`, `bytes`, `error`. [L7]
 19. The probe performs no parsing. The body is plain text, so deciding what it contains is pure string work and belongs in the check — unlike PDF parsing, which is I/O-shaped and lives in `document-probe.ts`. [L4]
 
 ### The check — Phase 2
@@ -73,7 +73,7 @@ Running `pnpm scraper <url>` prints that block after Section F. Section G adds t
 25. Verdict: `pass` when the file is found and the link count is at least `min_links`; `warn` in every other case — absent, non-200, an HTML body, no H1, or zero links. [L4] [L7]
 26. `skip` is returned only when the probe recorded an `error`, with `reason: "llms.txt fetch failed"`. This is the one case where the check genuinely could not run, matching `skip`'s meaning everywhere else in the scraper. [L1]
 27. `min_links` is read from the rulebook with `thresholdsFor(rulebook, "provenance.llms_txt")`, never hard-coded, and is `1`. [L4]
-28. Evidence carries: `found`, `statusCode`, `contentType`, `looksLikeHtml`, `hasH1`, `hasBlockquoteSummary`, `linkCount`, `bytes`, `truncated`, and `error` when one was captured — enough for the report to distinguish "no llms.txt" from "your 404 page" from "an H1 with no links". [L7]
+28. Evidence carries: `found`, `statusCode`, `contentType`, `looksLikeHtml`, `hasH1`, `hasBlockquoteSummary`, `linkCount`, `bytes`, and `error` when one was captured — enough for the report to distinguish "no llms.txt" from "your 404 page" from "an H1 with no links". [L7]
 29. The finding's `url` is the site root (`new URL("/", url).href`), as Section A's site-scope findings are. [L6]
 
 ### Rulebook entry
