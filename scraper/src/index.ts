@@ -12,6 +12,7 @@ import {
 import { runSectionCAudit } from "./section-c/index.ts";
 import { runSectionDAudit } from "./section-d/index.ts";
 import { runSectionFAudit } from "./section-f/index.ts";
+import { runSectionGAudit } from "./section-g/index.ts";
 import { captureDocuments } from "./document-probe.ts";
 
 const url = process.argv.slice(2).filter((arg) => !arg.startsWith("--"))[0];
@@ -46,3 +47,9 @@ const documents = await captureDocuments([snapshot], rulebook);
 printDocumentCapture(documents);
 
 printFindings("Section F — documents", runSectionFAudit([snapshot], documents.documents, rulebook));
+
+printFindings(
+  "Section G — provenance (observations, not scored)",
+  await runSectionGAudit(url, rulebook),
+);
+

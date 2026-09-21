@@ -132,13 +132,23 @@ The dimension's claim is that facts locked inside a PDF are facts an agent will 
 
 *Weakened until §5 lands:* `html_equivalent` can only compare against pages captured in the run, so auditing a single URL fails a pricing PDF even when `/pricing` exists. The crawler's ~40 pages are what make the comparison honest.
 
-### G. Provenance — low weight, high credibility
+### G. Provenance — measured, deliberately not scored
 
-- `llms.txt` / `llms-full.txt` present and non-stub  
-- `security.txt`, machine-readable contact  
-- Content licensing / AI-usage terms declared machine-readably
+One check: **`provenance.llms_txt`** — is there an `/llms.txt` at the origin root, and is it more than a stub? Found requires a 200, a body that is not HTML by both content-type and sniff, and the H1 the llmstxt.org v2 format calls "the only required section". Non-stub requires at least one file-list link under a `##` heading. The verdict is `pass`, `warn` or `skip`, and never `fail`: a site without one is no harder for an agent to read.
 
-**Positioning note on G:** llms.txt sits at \~10% adoption, no major AI provider commits to consuming it, and Google has stated on the record it has no effect on Search or AI Overviews. Score it low **and say so in the report**, with the evidence. Every competitor in this space overstates it. Being the honest tool is a positioning asset, not a compromise. Same treatment for WebMCP: check for it, weight it low, note it's an origin trial with near-zero real deployment.
+`llms-full.txt` is not fetched — v2 does not define it — and subpath files such as `/docs/llms.txt`, which v2 does permit, wait for the crawler.
+
+*Cut on purpose:* **`security.txt`.** The audited consumer is a reading agent, and no reading agent fetches it. It is an address for security researchers, not a machine-readable contact an agent acts on. Measuring it would widen the dimension without serving the consumer the tool is built for.
+
+*Cut on purpose:* **content licensing and AI-usage terms.** There is no widely adopted convention for declaring usage terms to an agent. IETF `aipref` is a draft, RSL is months old, TDM `tdmrep.json` has near-zero adoption, `noai` meta tags are honoured by nobody, and `<link rel="license">` declares copyright rather than AI permission. The only signal agents actually consult is robots.txt agent blocks, which Section A already reads as `access.robots_allows_agents` — so a licensing criterion would both double-charge for one thing and produce advice a site owner cannot act on. This is the same trade §3 E made when it cut CAPTCHA detection: easy and reliable to detect, worthless as a finding.
+
+**Positioning note on G:** this dimension is **unscored**. `criteria.yaml` marks the criterion `scored: false`, it carries no weight, and provenance therefore produces no dimension score in any run — the N/A case, by construction.
+
+The 2024 picture this section previously carried is out of date, and the replacement is not flattering in the other direction either. The llmstxt.org v2 proposal reports thousands of publishing sites, automatic generation by several documentation platforms, and Lighthouse auditing for it; those figures are the proposal author's own. Independent measurement is bleaker: SE Ranking, across ~300,000 domains, finds ~10% adoption and **no statistically significant correlation** between publishing an `llms.txt` and being cited in AI answers; Ahrefs, across ~137,000 domains, finds **97% of published files received zero requests** in a month. Google has stated on the record that it does not support the convention and does not plan to. No major AI provider commits to reading one.
+
+So: publishing one is an afternoon's work and plausibly worth doing, and there is no defensible basis for moving a site's score over it. Report it, show the evidence, charge nothing. Every competitor in this space overstates this dimension; being the honest tool is a positioning asset, not a compromise.
+
+WebMCP and API discoverability (`/openapi.json`, `/.well-known/`) remain unassigned to any dimension — see §3 E, which cut them from Action for the same reason they are not here: both are absent from the large majority of sites, and a dimension built from them alone either scores a restaurant 0 for not publishing an OpenAPI spec or produces no score at all.
 
 ---
 
@@ -146,7 +156,7 @@ The dimension's claim is that facts locked inside a PDF are facts an agent will 
 
 Do **not** emit a single 0–100. Emit three things:
 
-**1\. Seven dimension scores** (0–100 each), from weighted pass/fail within each dimension.
+**1\. Six scored dimension scores** (0–100 each), from weighted pass/fail within each dimension, plus **one observational dimension**. Provenance (§3 G) is measured and reported but carries no weight, so it produces no score and is rendered as an observations block rather than a number. A criterion marked `scored: false` in `criteria.yaml` is excluded from both the earned and the available totals — never counted as a pass, which inflates, and never as a fail, which defames.
 
 **2\. Blocking gates.** A small set of criteria that *cap* the total regardless of everything else:
 

@@ -374,6 +374,41 @@ affected and step 12 diffs the same file across runs. A document never opened
 contributes no findings at all rather than four skips, and
 `documents.html_equivalent` is emitted only for key documents.
 
+Section G, **site-scoped** and emitted once per run:
+
+```
+provenance.llms_txt
+```
+
+One key, and the first **unscored** one — see below.
+
+## Unscored criteria
+
+A criterion marked `scored: false` in the rulebook is measured and reported and
+contributes to neither side of the arithmetic:
+
+```
+earned    += 0
+available += 0
+```
+
+Not counted as a pass, which inflates the score, and not as a fail, which
+defames the site — the same exclusion a `skip` gets at step 6, for a different
+reason. A `skip` is excluded because the check could not run. An unscored
+criterion is excluded because what it asks about is not adopted widely enough
+to charge a site for.
+
+`loadRulebook()` enforces the flag's other half: every criterion **not** marked
+`scored: false` must carry a weight greater than zero, or the load throws and
+names the key. A zero weight would have been indistinguishable from a forgotten
+field, and a forgotten field would drop a criterion out of the arithmetic in
+silence.
+
+`provenance.llms_txt` is the only one today. Because it is provenance's only
+criterion, that dimension sums `0 earned ÷ 0 available` in every run — N/A by
+construction rather than by circumstance, and rendered as
+*"Section G — provenance (observations, not scored)"* rather than as a number.
+
 ## Dimensions that do not apply
 
 A site linking no PDFs produces no Section F findings, so the documents
@@ -388,8 +423,9 @@ The report says *"Documents — not applicable: no linked documents found"*, and
 the total is computed across the dimensions that produced a score. Scoring it 0
 would mark a restaurant down for not publishing a price list PDF; awarding a
 pass for the absence would score a restaurant and a law firm identically. This
-generalises: any dimension whose criteria are all absent or skipped is N/A, and
-`documents` is simply the first one where it happens routinely.
+generalises: any dimension whose criteria are all absent, skipped or unscored
+is N/A. `documents` is simply the first one where it happens routinely;
+`provenance` is the first where it happens by design.
 
 ## Open decisions
 

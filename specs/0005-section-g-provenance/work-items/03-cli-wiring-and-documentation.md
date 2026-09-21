@@ -2,7 +2,7 @@
 type: Work Item
 title: CLI wiring and documentation
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -33,17 +33,17 @@ The two cuts carry reasons worth preserving verbatim in §3 G. `security.txt` is
 
 ## Acceptance criteria
 
-- [ ] `pnpm scraper <url>` prints a `Section G — provenance (observations, not scored)` block after Section F, carrying one finding.
-- [ ] `scraper/src/index.ts` imports only `runSectionGAudit` from `section-g/`, with no `try`/`catch` around it.
-- [ ] `print-report.ts` is unchanged.
-- [ ] An unreachable `/llms.txt` does not abort the run, verified against a real site.
-- [ ] §3 G describes one check and records both cuts with their reasons.
-- [ ] §3 G's positioning note reflects the v2 adoption evidence and states that the criterion is reported but not scored.
-- [ ] §4 says six scored dimensions plus one observational.
-- [ ] `CLAUDE.md` describes Section G and its `pnpm scraper` row mentions it.
-- [ ] `docs/scoring-pipeline.md` records the unscored-criterion exclusion, provenance as N/A by construction, and lists `provenance.llms_txt`.
-- [ ] Manual verification: a site with a good `llms.txt`, a site with none, and a site answering `/llms.txt` with an HTML 404 at status 200 produce three distinct verdicts.
-- [ ] `pnpm lint` and `pnpm --filter scraper test` pass.
+- [x] `pnpm scraper <url>` prints a `Section G — provenance (observations, not scored)` block after Section F, carrying one finding.
+- [x] `scraper/src/index.ts` imports only `runSectionGAudit` from `section-g/`, with no `try`/`catch` around it.
+- [x] `print-report.ts` is unchanged.
+- [x] An unreachable `/llms.txt` does not abort the run, verified against a real site.
+- [x] §3 G describes one check and records both cuts with their reasons.
+- [x] §3 G's positioning note reflects the v2 adoption evidence and states that the criterion is reported but not scored.
+- [x] §4 says six scored dimensions plus one observational.
+- [x] `CLAUDE.md` describes Section G and its `pnpm scraper` row mentions it.
+- [x] `docs/scoring-pipeline.md` records the unscored-criterion exclusion, provenance as N/A by construction, and lists `provenance.llms_txt`.
+- [x] Manual verification: a site with a good `llms.txt`, a site with none, and a site answering `/llms.txt` with an HTML 404 at status 200 produce three distinct verdicts.
+- [x] `pnpm lint` and `pnpm --filter scraper test` pass.
 
 ## Covers
 

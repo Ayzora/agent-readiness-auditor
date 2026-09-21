@@ -17,7 +17,8 @@ package with Section A (Access — "can an agent get the bytes?"), Section B
 (Structure — "is the raw HTML shaped so an agent can read and navigate it?")
 and Section D (Semantics — "are the page's facts declared machine-readably?")
 implemented, Section F (Documents — "are the facts an agent needs locked
-inside a linked file?") implemented, run from a CLI against one URL given as an
+inside a linked file?") and Section G (Provenance — "has the site published
+anything *for* agents?") implemented, run from a CLI against one URL given as an
 argument, and a
 `web` package that is still an unmodified `create-next-app` scaffold (plus
 one sample route proving routing works). There is no crawler, no scoring
@@ -252,6 +253,51 @@ body is downloaded, 15s per document and 90s overall, and only documents on the
 site's own registrable domain. Treat a change to them as a safety-sensitive
 change.
 
+### Section G
+
+`scraper/src/section-g/` holds the codebase's smallest section and its first
+**unscored** criterion. `llms-txt-probe.ts` is a site-scope Phase 1 probe
+exporting `captureLlmsTxt(url)`; `llms-txt.ts` is the pure check
+`llmsTxtPresent(url, capture, rulebook)`; `index.ts` exports the async
+`runSectionGAudit(url, rulebook)`. The key is `provenance.llms_txt`.
+
+Like Section A and unlike B–F, the section owns its own Phase 1 work, because
+`/llms.txt` exists once per site and no page snapshot can supply it. Unlike
+Section A's older probes, this one follows the capture layer's never-throw
+discipline, so `index.ts` needs no `try`/`catch` around it.
+
+Four rules the section is built around, recorded in
+`specs/0005-section-g-provenance/spec.md`:
+
+- **Parsing lives in the check, not the probe** — the opposite call from
+  `document-probe.ts`. A PDF needs a library and has I/O-shaped failure modes;
+  an `llms.txt` body is plain text, so deciding what it contains is pure string
+  work. That is what lets a test pass a real `llms.txt` as an inline string.
+- **A 200 is not presence.** A single-page app answers every path with its
+  shell, so "found" needs a 200, a body that is not HTML by *both* the
+  content-type and a sniff of the first bytes, and the H1 that llmstxt.org v2
+  calls the only required section. The header test alone and the body test
+  alone are each independently fooled.
+- **Never `fail`.** `pass` when found with at least `min_links` file-list links,
+  `warn` in every other case — absent, non-200, an HTML body, no H1, no links.
+  `skip` only when the capture carries an `error`, the one case where no answer
+  arrived and the check genuinely could not run. A site with no `llms.txt` is
+  no harder for an agent to read.
+- **Unscored, so none of that costs anything.** `criteria.yaml` marks the
+  criterion `scored: false` and it carries no weight, so provenance is N/A in
+  every run and prints as an observations block. `loadRulebook()` asserts that
+  every *other* criterion carries a positive weight, which is what makes the
+  flag safe: a forgotten `weight` throws and names the key instead of silently
+  dropping a criterion out of the arithmetic.
+
+Deliberately not built: `security.txt` (no reading agent fetches it), content
+licensing and AI-usage terms in every form (no widely adopted convention
+exists, and robots.txt agent blocks — the only signal agents consult — are
+Section A's), `llms-full.txt` (v2 does not define it), and subpath files such
+as `/docs/llms.txt`, which wait for the crawler. A 1 MB body ceiling with a
+`truncated` flag was specified and cut during implementation: a ceiling without
+the flag would silently under-count links, so the two went together.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -269,19 +315,21 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C, D and F's findings against it |
+| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C, D, F and G's findings against it |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Sections C, D and F, plus Section F's link discovery; Sections A and B
-are a follow-up.
+cover Sections C, D, F and G, plus Section F's link discovery; Sections A and
+B are a follow-up.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
   browser. It lives outside every section folder because every section's tests
   will want it. `documentFrom(overrides)` beside it does the same for Section
-  F's `DocumentCapture`, so no test needs a PDF file or the PDF library.
+  F's `DocumentCapture`, so no test needs a PDF file or the PDF library, and
+  `llmsTxtFrom(overrides)` the same for Section G's `LlmsTxtCapture` — its
+  default is a valid file, so a case states only the field it is about.
 - Tests load the real `criteria.yaml` through `loadRulebook()`, so a threshold
   renamed in the rulebook but not in code fails loudly. Fixtures sit well
   inside a band, so retuning a cutoff does not break them.
