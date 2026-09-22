@@ -74,6 +74,14 @@ it asks about is not adopted widely enough to charge a site for. Marked
 `scored: false` in the rulebook.
 _Avoid_: informational, optional, bonus
 
+**Scorecard**:
+What one audit's findings amount to under the rulebook — a score per
+dimension, a total, the gate that capped it if any, and the problems in the
+order worth fixing them. A reading of the findings, recomputable at any time;
+the findings are the record.
+_Avoid_: audit (the whole run), report (how a scorecard is shown), result,
+verdict
+
 **Text coverage ratio**:
 The proportion of a page's text present without JavaScript, measured as raw
 text length over rendered text length.
