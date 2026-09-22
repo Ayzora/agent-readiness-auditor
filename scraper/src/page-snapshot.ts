@@ -94,6 +94,12 @@ async function captureRendered(
   }
 }
 
+// No response at all: a DNS failure, a refused connection, or both halves timing
+// out. A 403 or 500 is a response, because the raw fetch keeps any HTTP body.
+export function isUnreachable(snapshot: PageSnapshot): boolean {
+  return snapshot.rawHtml === null && snapshot.renderedHtml === null;
+}
+
 function emptySnapshot(url: string): PageSnapshot {
   return {
     url,

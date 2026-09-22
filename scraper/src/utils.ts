@@ -1,4 +1,12 @@
-import type { DocumentCapture, Finding, LlmsTxtCapture, PageSnapshot, Rulebook } from "./types.ts";
+import type {
+  Criterion,
+  DocumentCapture,
+  Finding,
+  Gate,
+  LlmsTxtCapture,
+  PageSnapshot,
+  Rulebook,
+} from "./types.ts";
 
 export function skipped(
   criterionKey: string,
@@ -121,5 +129,40 @@ export function llmsTxtFrom(overrides: Partial<LlmsTxtCapture> = {}): LlmsTxtCap
     bytes: Buffer.byteLength(VALID_LLMS_TXT),
     error: null,
     ...overrides,
+  };
+}
+
+// The scorer never reads evidence, so a finding needs only its key and status.
+export function findingFrom(overrides: Partial<Finding> = {}): Finding {
+  return {
+    criterionKey: "render.text_coverage",
+    url: TEST_URL,
+    status: "pass",
+    evidence: {},
+    ...overrides,
+  };
+}
+
+// A hand-built rulebook, so a scoring test states its own round weights and
+// retuning criteria.yaml never breaks it. The dimension defaults to the key's prefix.
+export function rulebookFrom(
+  criteria: (Partial<Criterion> & Pick<Criterion, "key">)[],
+  overrides: { gates?: Gate[]; warn_credit?: number } = {},
+): Rulebook {
+  return {
+    version: "test",
+    defaults: { warn_credit: overrides.warn_credit ?? 0.5 },
+    criteria: criteria.map((criterion) => ({
+      dimension: criterion.key.split(".")[0]!,
+      scope: "page",
+      ...(criterion.scored === false ? {} : { weight: 10 }),
+      severity: "medium",
+      effort: "S",
+      title: `Title of ${criterion.key}`,
+      why: `Why of ${criterion.key}`,
+      fix: `Fix of ${criterion.key}`,
+      ...criterion,
+    })),
+    gates: overrides.gates ?? [],
   };
 }

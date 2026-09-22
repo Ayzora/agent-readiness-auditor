@@ -168,6 +168,8 @@ Do **not** emit a single 0–100. Emit three things:
 
 Gates model reality correctly. Perfect JSON-LD behind a Cloudflare block is worth nothing, and a purely additive score would hide that.
 
+*As built (Spec 0006):* the "total" the gates cap is the unweighted mean of the scored dimension scores — each dimension counts once however many findings it holds — and it never leads the report: the dimension scores are always printed above it, which is how "do not emit a single 0–100" is honoured. A gate fires when every finding for its criterion fails; "blocked at the edge" is `access.policy_divergence` failing, which it does only when every probed agent is blocked. The sitewide `text_coverage_ratio` gate waits for the crawler, since "sitewide" means nothing on one page.
+
 **3\. Agent Cost Index** — Phase 2 only. Median tokens \+ steps to complete the archetype task set, indexed against a benchmark cohort.
 
 Every criterion carries `weight`, `severity`, and `remediation_effort` (S/M/L). Effort is what lets the report sort findings by **ROI** — `weight × affected_pages ÷ effort` — rather than by severity alone. Sorting by ROI is what makes the report actionable rather than overwhelming.

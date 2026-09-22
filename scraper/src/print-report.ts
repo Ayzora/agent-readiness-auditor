@@ -1,14 +1,21 @@
 import type {
+  DimensionScore,
   DocumentProbe,
   Finding,
   FindingStatus,
   InteractionCapture,
   PageSnapshot,
+  Rulebook,
+  Scorecard,
 } from "./types.ts";
 
 const STATUS_ORDER = ["fail", "warn", "skip", "pass"] as const;
 
 const MAX_EVIDENCE_VALUE_CHARS = 160;
+
+const SCORECARD_LABEL_WIDTH = 14;
+const SCORECARD_VALUE_WIDTH = 6;
+const WRAP_WIDTH = 76;
 
 export function printCapture(snapshot: PageSnapshot, interactions: InteractionCapture | null): void {
   console.log("=== Capture ===\n");
@@ -100,4 +107,100 @@ function truncate(text: string): string {
   return text.length > MAX_EVIDENCE_VALUE_CHARS
     ? `${text.slice(0, MAX_EVIDENCE_VALUE_CHARS)}…`
     : text;
+}
+
+// The words come from the rulebook here, at print time, so rewriting a fix:
+// sentence never needs a re-score. No evidence: the section blocks print it.
+export function printScorecard(scorecard: Scorecard, rulebook: Rulebook): void {
+  console.log("\n=== Scorecard ===\n");
+
+  for (const entry of scorecard.dimensions) {
+    const [value, note] = describeDimension(entry);
+    console.log(scorecardLine(capitalise(entry.dimension), value, note));
+  }
+
+  console.log("");
+  console.log(scorecardLine("Total", ...describeTotal(scorecard)));
+
+  for (const gate of scorecard.gates) {
+    const reason = rulebook.gates.find((entry) => entry.criterion === gate.criterion)?.reason;
+    console.log(scorecardLine("Gate", `${reason ?? gate.criterion} → cap ${gate.cap}`));
+  }
+
+  console.log("\n=== Fix first ===\n");
+
+  if (scorecard.fixFirst.length === 0) {
+    console.log("  Nothing to fix — no scored finding lost points.");
+    return;
+  }
+
+  const entries = scorecard.fixFirst.map((entry) => ({
+    ...entry,
+    criterion: rulebook.criteria.find((criterion) => criterion.key === entry.criterionKey)!,
+  }));
+  const titleWidth = Math.max(...entries.map((entry) => entry.criterion.title.length)) + 2;
+  const rankWidth = `${entries.length}.`.length;
+
+  entries.forEach(({ criterion, subjects }, index) => {
+    const rank = `${index + 1}.`.padEnd(rankWidth);
+    const indent = " ".repeat(2 + rankWidth + 1);
+    const tags = `${criterion.dimension} · ${criterion.severity} · effort ${criterion.effort}`;
+
+    console.log(`  ${rank} ${criterion.title.padEnd(titleWidth)}${tags}`);
+    for (const line of wrap(criterion.why.trim())) console.log(`${indent}${line}`);
+    console.log(`${indent}Fix: ${criterion.fix}`);
+    if (subjects.length === 1) console.log(`${indent}Affected: ${subjects[0]}`);
+    else {
+      console.log(`${indent}Affected: ${subjects.length}`);
+      for (const subject of subjects) console.log(`${indent}  ${subject}`);
+    }
+    console.log("");
+  });
+}
+
+function describeDimension(entry: DimensionScore): [string, string?] {
+  if (entry.observational) return ["—", "observations, not scored"];
+  if (entry.score !== null) return [String(Math.round(entry.score))];
+
+  return entry.dimension === "documents" && entry.findingCount === 0
+    ? ["N/A", "no linked documents found"]
+    : ["N/A", "no scored findings"];
+}
+
+function describeTotal(scorecard: Scorecard): [string, string?] {
+  if (scorecard.total === null)
+    return ["—", "not computed: access could not be measured, so gates could not be checked"];
+
+  const notes: string[] = [];
+  if (scorecard.total < scorecard.uncappedTotal!) notes.push(`capped from ${scorecard.uncappedTotal}`);
+  if (scorecard.leftOut.length > 0) {
+    const counted = scorecard.dimensions.filter((entry) => !entry.observational).length;
+    notes.push(
+      `from ${counted - scorecard.leftOut.length} of ${counted} dimensions — ${scorecard.leftOut.join(", ")} N/A`,
+    );
+  }
+
+  return [String(scorecard.total), notes.length > 0 ? notes.join("; ") : undefined];
+}
+
+function scorecardLine(label: string, value: string, note?: string): string {
+  const line = `  ${label.padEnd(SCORECARD_LABEL_WIDTH)}${note ? value.padEnd(SCORECARD_VALUE_WIDTH) + note : value}`;
+  return line.trimEnd();
+}
+
+function capitalise(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+function wrap(text: string): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    if (line && line.length + 1 + word.length > WRAP_WIDTH) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
 }

@@ -93,6 +93,8 @@ export function payPerCrawlDetected(url: string, agentResults: AgentsProbeResult
     return { criterionKey: "access.pay_per_crawl", url, status: agents.length > 0 ? "warn" : "pass", evidence: { agents } };
 }
 
+// Fails only when every probed agent was blocked, so one minor crawler
+// cannot trip the gate that caps the whole site.
 export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbeResult[]): Finding {
     if (agentResults.length === 0) return skipped("access.policy_divergence", url, NO_PROBES);
 
@@ -100,7 +102,9 @@ export function findPolicyDivergentAgents(url: string, agentResults: AgentsProbe
         .filter((result) => result.isChallenged || (result.statusCode ?? 0) >= 400)
         .map((result) => result.userAgent);
 
-    return { criterionKey: "access.policy_divergence", url, status: agents.length > 0 ? "fail" : "pass", evidence: { agents } };
+    const status = agents.length === 0 ? "pass" : agents.length === agentResults.length ? "fail" : "warn";
+
+    return { criterionKey: "access.policy_divergence", url, status, evidence: { agents } };
 }
 
 export function findBaselineMismatchedAgents(

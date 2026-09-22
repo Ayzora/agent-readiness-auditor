@@ -21,12 +21,11 @@ inside a linked file?") and Section G (Provenance — "has the site published
 anything *for* agents?") implemented, run from a CLI against one URL given as an
 argument, and a
 `web` package that is still an unmodified `create-next-app` scaffold (plus
-one sample route proving routing works). There is no crawler, no scoring
-engine and no database. The rulebook, `scraper/criteria.yaml`, exists and
-holds every criterion's weight, report text, thresholds and Section D's
-required-property table, but nothing scores with it yet.
-`docs/scoring-pipeline.md` records the agreed shape of the scorer before it is
-built.
+one sample route proving routing works). There is no crawler and no
+database. The rulebook, `scraper/criteria.yaml`, holds every criterion's
+weight, report text, thresholds and Section D's required-property table, and
+`scraper/src/scorecard.ts` scores one run's findings against it in memory.
+`docs/scoring-pipeline.md` records how, and which of its steps are built.
 
 ### Thresholds come from the rulebook
 
@@ -298,6 +297,43 @@ as `/docs/llms.txt`, which wait for the crawler. A 1 MB body ceiling with a
 `truncated` flag was specified and cut during implementation: a ceiling without
 the flag would silently under-count links, so the two went together.
 
+### The scorecard
+
+`scraper/src/scorecard.ts` exports `scoreFindings(findings, rulebook):
+Scorecard` — steps 5–11 of `docs/scoring-pipeline.md` over the findings array
+`index.ts` collects from every section. It is **pure and synchronous** for the
+reason the section aggregators are: no network, disk or database, so a test
+builds findings and a rulebook as literals. It lives outside every section
+folder because it reads every dimension. `printScorecard` in `print-report.ts`
+prints it as `=== Scorecard ===` then `=== Fix first ===`, after every section
+block. The word is **Scorecard** — never audit, report or result; see
+`GLOSSARY.md`.
+
+Rules it is built around, recorded in `specs/0006-scorecard/spec.md`:
+
+- **A scorecard carries keys and numbers, never rulebook prose.** Titles, why,
+  fix and gate reasons are read from the rulebook when printed, for the same
+  reason a finding carries no title.
+- **A warn earns `defaults.warn_credit` of its weight** (0.5), which
+  `loadRulebook()` validates. A skip and an unscored criterion add to neither
+  side.
+- **A dimension with nothing available is N/A, never 0**; one whose criteria
+  are all unscored is observational. The total is the unweighted **mean of the
+  dimension scores**, never pooled, and is **withheld when access is N/A** —
+  the gates are access criteria.
+- **A gate fires when every finding for its criterion fails**, which is why
+  `access.policy_divergence` fails only when every probed agent is blocked.
+- **A finding whose key is not in the rulebook throws**, naming the key.
+
+An unreachable site — `isUnreachable(snapshot)` in `page-snapshot.ts`, true
+when both halves are null — stops the run after the capture with one line and
+a non-zero exit. A Section A crash does not: access is then N/A and the total
+is withheld.
+
+Deliberately not built: persistence, reading back and diffing
+(`docs/scoring-pipeline.md` steps 4 and 12), and the sitewide text-coverage
+gate, which waits for the crawler.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -315,13 +351,14 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, then runs Section A's audit and Sections B, C, D, F and G's findings against it |
+| `pnpm scraper <url>` | Captures one page, runs Section A's audit and Sections B, C, D, F and G's findings against it, then prints the scorecard and the Fix first list |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Sections C, D, F and G, plus Section F's link discovery; Sections A and
-B are a follow-up.
+cover Sections C, D, F and G, Section F's link discovery, the scorecard, the
+rulebook loader, the unreachable test and Section A's `policy_divergence`;
+the rest of Sections A and B is a follow-up.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
@@ -330,9 +367,15 @@ B are a follow-up.
   F's `DocumentCapture`, so no test needs a PDF file or the PDF library, and
   `llmsTxtFrom(overrides)` the same for Section G's `LlmsTxtCapture` — its
   default is a valid file, so a case states only the field it is about.
+  `findingFrom(overrides)` and `rulebookFrom(criteria, overrides)` do the same
+  for the scorecard.
 - Tests load the real `criteria.yaml` through `loadRulebook()`, so a threshold
   renamed in the rulebook but not in code fails loudly. Fixtures sit well
-  inside a band, so retuning a cutoff does not break them.
+  inside a band, so retuning a cutoff does not break them. The one exception
+  is the scorecard's arithmetic, which uses hand-built rulebooks with round
+  weights: the scorer reads weight *values*, and pinning the real ones would
+  make every weight change look like a bug. One scorecard test loads the real
+  file and asserts shape only.
 - A test file drives off a written list of expectations, never a directory
   listing: a fixture that goes missing must fail its own named test rather
   than quietly leave the suite. Nothing in a test may catch what a check

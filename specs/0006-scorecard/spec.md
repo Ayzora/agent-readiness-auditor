@@ -1,6 +1,7 @@
 ---
 type: Spec
 title: "The scorecard: scoring one run's findings against the rulebook"
+status: done
 ---
 
 ## Problem

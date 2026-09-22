@@ -83,8 +83,49 @@ export interface Gate {
 
 export interface Rulebook {
   version: string;
+  // warn_credit: the share of a criterion's weight a warn earns.
+  defaults: { warn_credit: number };
   criteria: Criterion[];
   gates: Gate[];
+}
+
+// A dimension whose criteria are all unscored is observational: it never has a
+// score and is never counted as N/A. Otherwise `score` is null when nothing in
+// it was available to earn, which is N/A, never 0.
+export interface DimensionScore {
+  dimension: string;
+  observational: boolean;
+  // Unrounded, so the total is not built from rounded parts.
+  score: number | null;
+  findingCount: number;
+}
+
+// Carries no prose: a gate's reason is read from the rulebook when printed.
+export interface FiredGate {
+  criterion: string;
+  cap: number;
+}
+
+export interface FixFirstEntry {
+  criterionKey: string;
+  // Every url with a finding that cost points: a page, the site root or a document.
+  subjects: string[];
+  roi: number;
+}
+
+// What one audit's findings amount to under the rulebook. Keys and numbers
+// only; titles, why and fix text are looked up when it is printed.
+export interface Scorecard {
+  dimensions: DimensionScore[];
+  // Both null when the total is withheld; equal when no gate lowered it.
+  total: number | null;
+  uncappedTotal: number | null;
+  withheld: "access-not-measured" | null;
+  // Non-observational dimensions that were N/A while a total was computed.
+  leftOut: string[];
+  // Every gate that fired, not only the one that bound.
+  gates: FiredGate[];
+  fixFirst: FixFirstEntry[];
 }
 
 export type RenderSettled = "networkidle" | "load-timeout";

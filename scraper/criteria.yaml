@@ -4,6 +4,11 @@
 
 version: v0.1.0
 
+defaults:
+  # The share of a criterion's weight a warn earns: a real but lesser problem
+  # than a fail. A judgement call, not a measurement.
+  warn_credit: 0.5
+
 criteria:
   - key: access.robots_allows_agents
     dimension: access
@@ -174,10 +179,12 @@ criteria:
     why: "Agents trust the status code and treat the error page as real content."
     fix: "Return a 404 status for pages that do not exist"
 
+  # Unscored: a reading agent reads hidden text fine, so this can never fail,
+  # and half credit for a warn would still charge the site for it.
   - key: render.hidden_but_present
     dimension: render
     scope: page
-    weight: 2
+    scored: false
     severity: low
     effort: S
     thresholds:
@@ -468,8 +475,11 @@ criteria:
       provider commits to reading one, so we report it and do not score it.
     fix: "Publish /llms.txt with an H1 title and links to your key pages as markdown"
 
-# A gate caps the total score when its criterion fails.
+# A gate caps the total when every finding for its criterion fails.
 gates:
   - criterion: access.robots_allows_agents
     cap: 20
     reason: "robots.txt blocks every AI agent"
+  - criterion: access.policy_divergence
+    cap: 25
+    reason: "the server blocks every AI agent robots.txt allows"
