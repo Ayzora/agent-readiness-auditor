@@ -41,6 +41,16 @@ A Phase 2 pure function over already-captured data. A check never touches the
 network and returns a finding.
 _Avoid_: probe, rule, test
 
+**Agent probe**:
+One request for the audited page sent under a named AI agent's user-agent
+string, to see what that agent receives. Made once per agent robots.txt allows.
+_Avoid_: UA probe, bot test, agent test
+
+**Access capture**:
+Everything fetched once per site to judge access — robots.txt, the agent
+probes, the rate-limit ramp and the sitemaps — held as plain data.
+_Avoid_: robots audit, access probe
+
 **Page Snapshot**:
 The paired capture of a single URL — the raw response and the browser-rendered
 DOM of the same resolved address, plus status, headers and timing. Shared
