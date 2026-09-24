@@ -18,11 +18,13 @@ package with Section A (Access — "can an agent get the bytes?"), Section B
 and Section D (Semantics — "are the page's facts declared machine-readably?")
 implemented, Section F (Documents — "are the facts an agent needs locked
 inside a linked file?") and Section G (Provenance — "has the site published
-anything *for* agents?") implemented, run from a CLI against one URL given as an
-argument, and a
-`web` package that is still an unmodified `create-next-app` scaffold (plus
-one sample route proving routing works). There is no crawler and no
-database. The rulebook, `scraper/criteria.yaml`, holds every criterion's
+anything *for* agents?") implemented. The CLI takes one URL and audits a
+sample of that site's pages, chosen from its sitemap (see *The sitemap
+sample* below); with no usable sitemap it audits the typed URL alone. Pages
+come from the sitemap only — nothing follows links from page to page — and
+there is no database. Beside it sits a `web` package that is still an
+unmodified `create-next-app` scaffold (plus one sample route proving routing
+works). The rulebook, `scraper/criteria.yaml`, holds every criterion's
 weight, report text, thresholds and Section D's required-property table, and
 `scraper/src/scorecard.ts` scores one run's findings against it in memory.
 `docs/scoring-pipeline.md` records how, and which of its steps are built.
@@ -44,11 +46,14 @@ code.
 Sections do not all look alike, and the difference is a decision rather than
 drift. What varies is the **scope** of the thing being fetched:
 
-- **Site-scope sections** (Section A) fetch resources that exist once per site
-  — robots.txt, the sitemap, a rate-limit ramp. Nothing else can share those
-  bytes, so the section owns its own Phase 1 capture and exports the async
-  `runSectionAAudit(url, snapshot, rulebook)`. `runSectionXAudit(url)` is the shape for
-  site-scope work only.
+- **Site-scope sections** (Sections A and G) fetch resources that exist once
+  per site — the agent probes, a rate-limit ramp, `/llms.txt`. Nothing else
+  can share those bytes, so the section owns that Phase 1 work and exports an
+  async `runSectionXAudit(url, …)`, a shape for site-scope work only. The one
+  exception is robots.txt and the sitemap: the sitemap chooses the pages
+  before any is captured, so `scraper/src/site-files.ts` fetches both once and
+  Section A receives them:
+  `runSectionAAudit(url, siteFiles, baselineRawHtml, rulebook)`.
 - **Page-scope sections** (Sections B and C, and D–F when they land) all need the
   identical raw-and-rendered pair for a page. That capture therefore lives
   **outside** every section folder — `scraper/src/page-snapshot.ts` and
@@ -73,31 +78,37 @@ live in `section-b/`, but it is not Section A's either.
 
 The rule that has not changed: the root `scraper/src/index.ts` never reaches
 into a section's internal files. It imports one aggregating function per
-section, performs the page capture **once**, and hands the result to both.
+section, captures each sampled page **once**, and hands every snapshot to
+each page-scope section.
 
 ### Section A
 
 `scraper/src/section-a/` has the fetch/check split every other section has.
 `section-a/index.ts` is its single public entry point: the async
-`runSectionAAudit(url, snapshot, rulebook)` calls `captureAccess(url)` and then
-the synchronous `judgeAccess(url, capture, baselineRawHtml, rulebook)`, which
-returns the seven `access.*` findings. The snapshot's **raw** half is the
-baseline the agent probes are compared against.
+`runSectionAAudit(url, siteFiles, baselineRawHtml, rulebook)` calls
+`captureAccess(url, siteFiles)` and then the synchronous
+`judgeAccess(url, capture, baselineRawHtml, rulebook)`, which returns the seven
+`access.*` findings. The typed URL's **raw** HTML is the baseline the agent
+probes are compared against; it is null when that page was unreachable.
 
-- **Phase 1** is `capture.ts`: `captureAccess(url)` fetches robots.txt once,
-  sends one agent probe per agent robots.txt allows on the audited page, runs
-  the rate-limit ramp and fetches the sitemaps, and returns one plain
-  **access capture** (`AccessCapture` in `types.ts`). It **never throws**: a
-  failed fetch leaves its fields null and an `error` on its own part of the
-  capture, so `index.ts` needs no `try`/`catch`. Every fetch goes through
-  `got-scraping` with an explicit timeout and `retry: { limit: 0 }`.
+- **Phase 1** is `capture.ts`: `captureAccess(url, siteFiles)` sends one agent
+  probe per agent robots.txt allows on the audited page and runs the
+  rate-limit ramp, and returns one plain **access capture** (`AccessCapture` in
+  `types.ts`) — those plus the robots.txt and sitemap `site-files.ts` already
+  fetched. It **never throws**: a failed fetch leaves its fields null and an
+  `error` on its own part of the capture, so `index.ts` needs no
+  `try`/`catch`. Every fetch goes through `got-scraping` with an explicit
+  timeout and `retry: { limit: 0 }`. It runs only after every page capture has
+  finished, so the ramp never overlaps one.
 - **Phase 2** is pure checks beside the helpers they share: `robots.ts`
-  (`readRobots`, `agentsToProbe`, `robotsAllowsAgents`), `agent-probes.ts`
+  (`agentsToProbe`, `robotsAllowsAgents`), `agent-probes.ts`
   (`probeOutcome`, `findPolicyDivergentAgents`, `payPerCrawlDetected`,
   `findBaselineMismatchedAgents`), `rate-limit.ts` (`rateLimitStop`,
-  `rateLimit`) and `sitemap.ts` (`sitemapLoads`, `sitemapPresent`,
-  `sitemapFresh`). Phase 1 imports `agentsToProbe`, `rateLimitStop` and
-  `sitemapLoads` to decide what to fetch next, so both phases apply one rule.
+  `rateLimit`) and `sitemap.ts` (`sitemapPresent`, `sitemapFresh`). Phase 1
+  imports `agentsToProbe` and `rateLimitStop` to decide what to fetch next, so
+  both phases apply one rule. `readRobots` lives in the root `robots-txt.ts`
+  and `sitemapLoads` in `site-sample.ts`, because `site-files.ts` needs them
+  too and a root module never imports from a section folder.
 
 Rules the section is built around, recorded in
 `specs/0007-section-a-correct-and-never-throw/spec.md`:
@@ -120,8 +131,8 @@ Rules the section is built around, recorded in
   answering 200 is not enough.
 
 Not yet done, deliberately deferred: latency capture per agent probe, and
-sitemap coverage-gap-vs-crawl (blocked on the crawler, which doesn't exist
-yet).
+the sitemap coverage gap, which waits for its own Spec and can now read the
+sample's templates.
 
 ### Section B
 
@@ -202,8 +213,8 @@ at all, `structured_data_present` fails while the other two `skip`.
 
 Deliberately not built: OpenGraph, `dateModified`, validation against the
 schema.org vocabulary, microdata and RDFa. Type appropriateness (does the
-declared type match the page's template?) is deferred rather than cut — it needs
-the crawler's clustering, which does not exist yet.
+declared type match the page's template?) is deferred rather than cut — it waits
+for its own Spec, which can now read the sample's templates.
 
 ### Section F
 
@@ -315,7 +326,7 @@ Deliberately not built: `security.txt` (no reading agent fetches it), content
 licensing and AI-usage terms in every form (no widely adopted convention
 exists, and robots.txt agent blocks — the only signal agents consult — are
 Section A's), `llms-full.txt` (v2 does not define it), and subpath files such
-as `/docs/llms.txt`, which wait for the crawler. A 1 MB body ceiling with a
+as `/docs/llms.txt`, which wait for their own Spec. A 1 MB body ceiling with a
 `truncated` flag was specified and cut during implementation: a ceiling without
 the flag would silently under-count links, so the two went together.
 
@@ -356,7 +367,47 @@ only as a guard.
 
 Deliberately not built: persistence, reading back and diffing
 (`docs/scoring-pipeline.md` steps 4 and 12), and the sitewide text-coverage
-gate, which waits for the crawler.
+gate, which waits for its own Spec.
+
+### The sitemap sample
+
+A run audits a sample of the site's pages rather than the one URL typed.
+Recorded in `specs/0008-sitemap-page-sampling/spec.md`; *template* and
+*sampled page* are defined in `GLOSSARY.md`.
+
+- **Phase 1, before any page**: `site-files.ts` exports `captureSiteFiles(url)`,
+  which fetches robots.txt and then the sitemap — the robots.txt `Sitemap:`
+  lines in order until one loads, `/sitemap.xml` when it lists none. It never
+  throws.
+- **Phase 2**: `site-sample.ts` exports the pure `sampleSite(typedUrl,
+  sitemaps)`, which returns either a `SiteSample` or a fallback reason, so a
+  test passes sitemap XML as a string. Eligible URLs are same-host (`www.` and
+  the scheme ignored), not a file by extension, fragment-free, and English or
+  unprefixed — else the typed URL's language, else the sitemap's most common.
+  A URL's template is its first path segment plus its segment count, the kept
+  language segment and the query ignored: `/products/*`. Quotas are 5 for the
+  largest template, 3 above 50 URLs, 1 otherwise, filled in two passes over the
+  templates, largest first, up to 40 pages. The typed URL and `/` are always
+  sampled.
+- **Only a `<urlset>` supplies pages.** No sitemap, a `<sitemapindex>` (whose
+  child files are never opened) or a urlset with no eligible URLs falls back
+  to the typed URL alone, after a one-line notice that is not a finding.
+  Section A still judges the sitemap from the same download, so an index
+  still passes `access.sitemap_present`.
+- **Capture**: `capture-pages.ts` exports `capturePages(urls)`, one page at a
+  time with a 1-second pause and a 15-minute limit checked before each page. The
+  sample is in capture order — the typed URL, `/`, every template's first page,
+  then the top-ups — so the limit cuts the least representative pages first.
+- **Scoring counts measured findings only.** Every audited page counts
+  equally, and template sizes are shown beside Fix first entries by
+  `templateBreakdown` at print time; they never enter a score or the ROI.
+- **Output**: a multi-page run prints a `=== Pages ===` block, one capture line
+  per page, and only fails and warns in each section block. A single-page run,
+  including every fallback, prints what it always did plus the notice.
+
+The 40-page cap, the 5/3/1 quotas and their 50-URL boundary, the pause and the
+time limit are politeness constraints, like the rate-limit ramp: they stay in
+code, not `criteria.yaml`, and a change to them is a safety-sensitive change.
 
 ## Prerequisites
 
@@ -375,14 +426,15 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Captures one page, runs Section A's audit and Sections B, C, D, F and G's findings against it, then prints the scorecard and the Fix first list |
+| `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, then prints the scorecard and the Fix first list |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Sections A, C, D, F and G, Section F's link discovery, the scorecard,
-the rulebook loader and the unreachable test; Section B is a follow-up.
-Section A's Phase 1 fetches are verified by hand, not unit-tested.
+cover Sections A, C, D, F and G, Section F's link discovery, the sitemap
+sample, the scorecard, the rulebook loader and the unreachable test; Section B
+is a follow-up. Section A's Phase 1 fetches, the robots.txt and sitemap
+download, and the page-capture loop are verified by hand, not unit-tested.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
@@ -462,12 +514,13 @@ codebase," and it should shape anything added to `scraper`:
 
 This is what will eventually allow re-scoring without re-crawling, offline
 unit tests against saved snapshots, and parallelizing only the slow phase.
-Section A's site-level fetches all live in `section-a/capture.ts` for this
+Section A's own site-level fetches live in `section-a/capture.ts` for this
 reason, and its checks are the Phase-2 pure functions that consume the access
 capture.
 
-Page-scope Phase 1 lives in `page-snapshot.ts` and `interaction-probe.ts`, and
-site-scope Phase 1 that is nobody's section in `soft-404-probe.ts` — all three
+Page-scope Phase 1 lives in `page-snapshot.ts`, `interaction-probe.ts` and the
+loop over them in `capture-pages.ts`, and site-scope Phase 1 that is nobody's
+section alone in `site-files.ts` and `soft-404-probe.ts` — all of them
 outside the section folders, because Sections C–F need the same bytes. Every
 Phase 1 module here degrades rather than throws: fields go null, an `error`
 string is populated, and the checks reading them return `skip`. One dead page

@@ -212,9 +212,9 @@ to every agent. An averaged score hides that; a gate refuses to.
 **Deferred — the sitewide text-coverage gate** (`sitewide ratio < 0.15 → cap
 40`). It needs an average of an evidence value across pages with its own
 cutoff, machinery the other gates do not, and "sitewide" means nothing on one
-page. It waits for the crawler. A JavaScript-only site is already penalised
-across render, structure and semantics, because Sections C and D read raw
-HTML only.
+page. It waits for its own Spec, which can now read the sitemap sample. A
+JavaScript-only site is already penalised across render, structure and
+semantics, because Sections C and D read raw HTML only.
 
 ## Step 9 — group
 

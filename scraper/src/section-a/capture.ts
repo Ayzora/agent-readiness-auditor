@@ -1,21 +1,12 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { gotScraping } from "got-scraping";
-import type {
-  AccessCapture,
-  Agent,
-  AgentProbe,
-  RateLimitCapture,
-  RobotsTxtCapture,
-  SitemapFetch,
-} from "../types.ts";
-import { agentsToProbe, readRobots } from "./robots.ts";
+import type { AccessCapture, Agent, AgentProbe, RateLimitCapture, SiteFiles } from "../types.ts";
+import { agentsToProbe } from "./robots.ts";
 import { rateLimitStop } from "./rate-limit.ts";
-import { sitemapLoads } from "./sitemap.ts";
 
 // Matches the page capture's raw fetch, so an agent gets as long as the baseline did.
 const AGENT_TIMEOUT_MS = 15_000;
 const RATE_LIMIT_TIMEOUT_MS = 10_000;
-const FILE_TIMEOUT_MS = 10_000;
 
 const RATES = [1, 2, 4, 8]; // requests/second, hard cap 10
 const STEP_MILLIS = 3000; // hold each rate this long
@@ -39,21 +30,13 @@ const USER_AGENT_STRINGS: Record<Agent, string> = {
   "Googlebot": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36",
 };
 
-// Every Section A fetch, once per run. Never throws: a failed fetch leaves its
-// fields null and an `error` on its own part of the capture.
-export async function captureAccess(url: string): Promise<AccessCapture> {
-  const robots = await fetchRobots(url);
-  const agentProbes = await probeAgents(url, agentsToProbe(robots, url));
+// Never throws: a failed fetch leaves its fields null and an `error` on its
+// own part of the capture.
+export async function captureAccess(url: string, siteFiles: SiteFiles): Promise<AccessCapture> {
+  const agentProbes = await probeAgents(url, agentsToProbe(siteFiles.robots, url));
   const rateLimit = await rampRequests(url);
-  const sitemaps = await fetchSitemaps(url, readRobots(robots).sitemaps);
 
-  return { robots, agentProbes, rateLimit, sitemaps };
-}
-
-async function fetchRobots(url: string): Promise<RobotsTxtCapture> {
-  const robotsUrl = new URL("/robots.txt", url).href;
-  const { statusCode, body, error } = await fetchFile(robotsUrl);
-  return { url: robotsUrl, statusCode, body, error };
+  return { ...siteFiles, agentProbes, rateLimit };
 }
 
 // One at a time, one request each: a retry would hit the site again for an
@@ -116,38 +99,6 @@ async function rampRequests(url: string): Promise<RateLimitCapture> {
   }
 
   return { limitFoundAt: null, stoppedBy: null, error: null };
-}
-
-// Listed sitemaps are tried in order until one loads; /sitemap.xml only when
-// robots.txt listed none.
-async function fetchSitemaps(url: string, listed: string[]): Promise<AccessCapture["sitemaps"]> {
-  const source = listed.length > 0 ? "robots.txt" : "default";
-  const candidates = listed.length > 0 ? listed : [new URL("/sitemap.xml", url).href];
-  const fetches: SitemapFetch[] = [];
-
-  for (const candidate of candidates) {
-    const fetch = { url: candidate, ...(await fetchFile(candidate)) };
-    fetches.push(fetch);
-    if (sitemapLoads(fetch)) break;
-  }
-
-  return { source, fetches };
-}
-
-async function fetchFile(
-  url: string,
-): Promise<{ statusCode: number | null; body: string | null; error: string | null }> {
-  try {
-    const response = await gotScraping({
-      url,
-      throwHttpErrors: false,
-      retry: { limit: 0 },
-      timeout: { request: FILE_TIMEOUT_MS },
-    });
-    return { statusCode: response.statusCode, body: response.body, error: null };
-  } catch (error) {
-    return { statusCode: null, body: null, error: describe(error) };
-  }
 }
 
 function describe(error: unknown): string {

@@ -57,16 +57,54 @@ export interface SitemapFetch {
   error: string | null;
 }
 
-// Everything Section A fetches, once per run. Fields go null and `error` is
-// populated rather than throwing, so one dead fetch costs only its own findings.
-export interface AccessCapture {
+export interface SitemapCapture {
+  // "robots.txt" when its Sitemap: lines were tried, in order until one loaded;
+  // "default" when it listed none and /sitemap.xml was tried instead.
+  source: "robots.txt" | "default";
+  fetches: SitemapFetch[];
+}
+
+export interface SiteFiles {
   robots: RobotsTxtCapture;
+  sitemaps: SitemapCapture;
+}
+
+// Everything Section A judges, once per run. Fields go null and `error` is
+// populated rather than throwing, so one dead fetch costs only its own findings.
+export interface AccessCapture extends SiteFiles {
   // Only the agents robots.txt allows on the audited page, one probe each.
   agentProbes: AgentProbe[];
   rateLimit: RateLimitCapture;
-  // "robots.txt" when its Sitemap: lines were tried, in order until one loaded;
-  // "default" when it listed none and /sitemap.xml was tried instead.
-  sitemaps: { source: "robots.txt" | "default"; fetches: SitemapFetch[] };
+}
+
+export interface Template {
+  label: string;
+  // In sitemap order; its length is the template's size.
+  urls: string[];
+  sampled: string[];
+}
+
+export interface SiteSample {
+  sitemapUrl: string;
+  eligibleCount: number;
+  // Largest first.
+  templates: Template[];
+  // Every sampled page, in capture order; the typed URL is always first.
+  pages: string[];
+  templatesLeftOut: number;
+}
+
+export type NoUsableSitemap = "no sitemap" | "sitemap index" | "no eligible URLs";
+
+export type SitemapSampling =
+  | { kind: "sample"; sample: SiteSample }
+  | { kind: "fallback"; reason: NoUsableSitemap };
+
+export interface TemplateBreakdownLine {
+  label: string;
+  affected: number;
+  audited: number;
+  size: number;
 }
 
 export type FindingStatus = "pass" | "fail" | "warn" | "skip";
@@ -204,6 +242,11 @@ export interface InteractionCapture {
   scroll: ScrollCapture | null;
   clicks: number;
   elapsedMs: number;
+}
+
+export interface PageCapture {
+  snapshot: PageSnapshot;
+  interactions: InteractionCapture | null;
 }
 
 export interface JsonLdEntity {

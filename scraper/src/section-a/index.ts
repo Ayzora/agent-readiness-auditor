@@ -7,16 +7,17 @@ import {
 } from "./agent-probes.ts";
 import { rateLimit } from "./rate-limit.ts";
 import { sitemapFresh, sitemapPresent } from "./sitemap.ts";
-import type { AccessCapture, Finding, PageSnapshot, Rulebook } from "../types.ts";
+import type { AccessCapture, Finding, Rulebook, SiteFiles } from "../types.ts";
 
 export async function runSectionAAudit(
   url: string,
-  snapshot: PageSnapshot,
+  siteFiles: SiteFiles,
+  baselineRawHtml: string | null,
   rulebook: Rulebook,
 ): Promise<Finding[]> {
-  const capture = await captureAccess(url);
+  const capture = await captureAccess(url, siteFiles);
 
-  return judgeAccess(url, capture, snapshot.rawHtml, rulebook);
+  return judgeAccess(url, capture, baselineRawHtml, rulebook);
 }
 
 // Synchronous on purpose, like Sections B–F: it cannot fetch, so a test builds

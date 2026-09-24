@@ -187,6 +187,8 @@ You cannot audit 10,000 pages and you don't need to. Sites are templates.
 
 Audit \~40 pages, report as *"affects 3,200 pages in the product-detail template."* That framing is worth more than exhaustive crawling and costs 1% as much.
 
+*As built (Spec 0008):* pages come from the **sitemap only**, and are grouped by **path shape** rather than DOM skeleton. There is no homepage crawl and no link-following. A template is a URL's first path segment plus its number of segments (`/products/*`), and the language segment is ignored. Both steps 1 and 2 above need every discovered page downloaded before any is chosen, which is hundreds of requests against §6's budget of about 100 for the whole audit. Reading one sitemap costs one request, and every grouping decision can be checked by hand. The quotas in step 3 stand, capped at 40 pages. Step 4's force-includes shrink to the typed URL and `/`, because pricing, contact and primary-nav pages are only known by fetching pages. Only a `<urlset>` supplies pages. A sitemap index is not followed, and a site without a normal sitemap is audited on the typed URL alone, with a notice. The sample is English-first, so the same page in five languages does not take five slots. Template sizes are shown beside Fix first entries but never enter a score, so the report says *"3 of 5 sampled in `/products/*` (2,140 URLs in sitemap)"* rather than claiming pages nobody audited.
+
 ---
 
 ## 6\. Architecture — fetch phase, then analysis phase

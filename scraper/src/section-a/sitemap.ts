@@ -1,21 +1,13 @@
-import type { AccessCapture, Finding, Rulebook, SitemapFetch } from "../types.ts";
+import { sitemapLoads } from "../site-sample.ts";
+import type { Finding, Rulebook, SitemapCapture, SitemapFetch } from "../types.ts";
 import { skipped, thresholdsFor } from "../utils.ts";
-
-// A 200 is not presence: a single-page app answers /sitemap.xml with its shell.
-export function sitemapLoads(fetch: SitemapFetch): boolean {
-  return (
-    fetch.statusCode === 200 &&
-    fetch.body !== null &&
-    (fetch.body.includes("<urlset") || fetch.body.includes("<sitemapindex"))
-  );
-}
 
 function whyNotLoaded(fetch: SitemapFetch): string {
   if (fetch.statusCode === null) return fetch.error ?? "no answer";
   return fetch.statusCode === 200 ? "not a sitemap" : `HTTP ${fetch.statusCode}`;
 }
 
-export function sitemapPresent(url: string, sitemaps: AccessCapture["sitemaps"]): Finding {
+export function sitemapPresent(url: string, sitemaps: SitemapCapture): Finding {
   const loaded = sitemaps.fetches.find(sitemapLoads) ?? null;
   const listedInRobots = sitemaps.source === "robots.txt";
   const status = loaded ? (listedInRobots ? "pass" : "warn") : "fail";
@@ -36,7 +28,7 @@ export function sitemapPresent(url: string, sitemaps: AccessCapture["sitemaps"])
 
 export function sitemapFresh(
   url: string,
-  sitemaps: AccessCapture["sitemaps"],
+  sitemaps: SitemapCapture,
   rulebook: Rulebook,
 ): Finding {
   const criterionKey = "access.sitemap_freshness";

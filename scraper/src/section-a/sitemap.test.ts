@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadRulebook } from "../rulebook.ts";
-import type { AccessCapture, FindingStatus, SitemapFetch } from "../types.ts";
-import { sitemapFresh, sitemapLoads, sitemapPresent } from "./sitemap.ts";
+import { sitemapLoads } from "../site-sample.ts";
+import type { FindingStatus, SitemapCapture, SitemapFetch } from "../types.ts";
+import { sitemapFresh, sitemapPresent } from "./sitemap.ts";
 
 const rulebook = loadRulebook();
 
@@ -40,7 +41,7 @@ const LISTED_B = "https://test.invalid/sitemap-b.xml";
 
 const presentCases: {
   name: string;
-  sitemaps: AccessCapture["sitemaps"];
+  sitemaps: SitemapCapture;
   status: FindingStatus;
   evidence: Record<string, unknown>;
 }[] = [
@@ -112,7 +113,7 @@ const withLastmod = (...dates: string[]) =>
 
 const freshnessCases: {
   name: string;
-  sitemaps: AccessCapture["sitemaps"];
+  sitemaps: SitemapCapture;
   status: FindingStatus;
   evidence: Record<string, unknown>;
 }[] = [
