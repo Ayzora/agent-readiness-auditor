@@ -151,3 +151,15 @@ _Avoid_: similarity, duplication, match score
 The extractable text inside a PDF. A PDF without one is an image of text,
 readable by nobody who is not looking at it.
 _Avoid_: OCR, raw text, content
+
+**Template**:
+A group of sitemap URLs sharing a path shape — the same number of path
+segments and the same first segment, so `/products/red-shoe` and
+`/products/blue-hat` both belong to `/products/*`. The unit a sample stands
+for.
+_Avoid_: cluster, section, page type
+
+**Sampled page**:
+A sitemap URL chosen to be audited as the representative of its template.
+Only sampled pages get a page snapshot.
+_Avoid_: crawled page, audited URL
