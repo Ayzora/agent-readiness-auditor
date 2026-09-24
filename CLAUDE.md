@@ -409,6 +409,33 @@ The 40-page cap, the 5/3/1 quotas and their 50-URL boundary, the pause and the
 time limit are politeness constraints, like the rate-limit ramp: they stay in
 code, not `criteria.yaml`, and a change to them is a safety-sensitive change.
 
+### The report
+
+Every run that produces a scorecard also saves a **report** — the Markdown
+document showing that scorecard to the person who has to fix the site — to
+`~/Downloads/<host>-<YYYY-MM-DD-HHmmss>.md`. Recorded in
+`specs/0009-markdown-report/spec.md`.
+
+- `scraper/src/report.ts` exports the pure `renderReport(input): string`, over
+  the findings, the scorecard, the rulebook, the run's date and the sample (or
+  fallback reason). No network, disk or clock, so the same input renders the
+  same text — and a database era can call it on findings read back.
+- Its parts, in order: Coverage, Headline, Access reality check, Fix first
+  (with every affected subject's evidence in full), Observations (unscored
+  criteria) and Not checked (every scored skip). Every sentence comes from the
+  rulebook; the report writes no prose of its own, and reuses the terminal's
+  wording through helpers exported from `print-report.ts`.
+- The access table is rebuilt from the `access.*` findings' evidence, never the
+  capture, for the same database-era reason.
+- Text from the audited site goes in code spans and table cells escape `|`, so
+  a site cannot break the Markdown.
+- `index.ts` saves it last: never inside the repository, never over an existing
+  file, never creating `~/Downloads`. A failed save prints
+  `Report not saved — <reason>.` and leaves the exit code alone.
+
+Deliberately not built: storing the report in the database, the Ignore list
+(the rulebook has no content for it) and per-criterion evidence sentences.
+
 ## Prerequisites
 
 - Node.js 23.6+ — the scraper is TypeScript that Node runs directly via type
@@ -426,15 +453,16 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, then prints the scorecard and the Fix first list |
+| `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, then prints the scorecard and the Fix first list and saves the report to `~/Downloads` |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
 cover Sections A, C, D, F and G, Section F's link discovery, the sitemap
-sample, the scorecard, the rulebook loader and the unreachable test; Section B
-is a follow-up. Section A's Phase 1 fetches, the robots.txt and sitemap
-download, and the page-capture loop are verified by hand, not unit-tested.
+sample, the scorecard, the report, the rulebook loader and the unreachable
+test; Section B is a follow-up. Section A's Phase 1 fetches, the robots.txt and
+sitemap download, the page-capture loop and saving the report are verified by
+hand, not unit-tested.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no

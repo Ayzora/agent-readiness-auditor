@@ -21,7 +21,11 @@ import { runSectionFAudit } from "./section-f/index.ts";
 import { runSectionGAudit } from "./section-g/index.ts";
 import { captureDocuments } from "./document-probe.ts";
 import { scoreFindings } from "./scorecard.ts";
+import { renderReport, type ReportCoverage } from "./report.ts";
 import type { Finding } from "./types.ts";
+import { writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const url = process.argv.slice(2).filter((arg) => !arg.startsWith("--"))[0];
 
@@ -111,8 +115,55 @@ section(
   await runSectionGAudit(url, rulebook),
 );
 
+const scorecard = scoreFindings(findings, rulebook);
+
 printScorecard(
-  scoreFindings(findings, rulebook),
+  scorecard,
   rulebook,
   sample ? { sample, audited: snapshots.map((snapshot) => snapshot.url) } : undefined,
 );
+
+const coverage: ReportCoverage =
+  sampling.kind === "sample"
+    ? {
+        kind: "sample",
+        sample: sampling.sample,
+        audited: snapshots.map((snapshot) => snapshot.url),
+        unreachable: captures
+          .filter(({ snapshot }) => isUnreachable(snapshot))
+          .map(({ snapshot }) => snapshot.url),
+        notCaptured: notStarted,
+      }
+    : { kind: "fallback", reason: sampling.reason };
+
+await saveReport(new Date());
+
+// Never inside the repository, never over an earlier report, and never fatal:
+// the audit is already on screen, so a failed save costs only the file.
+async function saveReport(now: Date): Promise<void> {
+  const folder = join(homedir(), "Downloads");
+  const path = join(folder, `${new URL(url).hostname}-${timestamp(now)}.md`);
+  const markdown = renderReport({ url, date: now, findings, scorecard, rulebook, coverage });
+
+  try {
+    // "wx" fails on an existing file, and writeFile never creates the folder.
+    await writeFile(path, markdown, { flag: "wx" });
+    console.log(`Report saved to ${path}`);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    const reason =
+      code === "ENOENT"
+        ? `no folder at ${folder}`
+        : code === "EEXIST"
+          ? `${path} already exists`
+          : code === "EACCES" || code === "EPERM"
+            ? `no permission to write to ${folder}`
+            : (error as Error).message;
+    console.log(`Report not saved — ${reason}.`);
+  }
+}
+
+function timestamp(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}

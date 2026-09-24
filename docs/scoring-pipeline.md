@@ -287,9 +287,10 @@ It is also why `Finding` has no `title` field: that sentence is written once,
 in a YAML file, not generated in TypeScript. The scorecard carries keys and
 numbers only, for the same reason, and the printer reads the words.
 
-**As built, the Fix first list prints no evidence** — the section blocks above
-it already print every finding's evidence. Quoting it per entry waits for the
-Markdown report.
+**As built, the terminal's Fix first list prints no evidence** — the section
+blocks above it already print every finding's evidence. The Markdown report
+(`scraper/src/report.ts`, Spec 0009) quotes it per entry, in full, as
+`name: value` pairs under each affected subject.
 
 ## Step 12 — diff
 

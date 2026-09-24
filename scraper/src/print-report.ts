@@ -29,10 +29,15 @@ const NO_SITEMAP_CAUSE: Record<NoUsableSitemap, string> = {
   "no eligible URLs": "Sitemap lists no auditable URLs",
 };
 
+// Shared with the report, which must repeat the notice word for word.
+export function fallbackNotice(reason: NoUsableSitemap, url: string): string {
+  return `${NO_SITEMAP_CAUSE[reason]} — auditing only ${url}. Results cover one page, not the site.`;
+}
+
+export const NOTHING_TO_FIX = "Nothing to fix — no scored finding lost points.";
+
 export function printFallbackNotice(reason: NoUsableSitemap, url: string): void {
-  console.log(
-    `${NO_SITEMAP_CAUSE[reason]} — auditing only ${url}. Results cover one page, not the site.\n`,
-  );
+  console.log(`${fallbackNotice(reason, url)}\n`);
 }
 
 export function printPages(sample: SiteSample, captures: PageCapture[], notStarted: string[]): void {
@@ -84,7 +89,7 @@ export function printCaptureLines(captures: PageCapture[]): void {
   }
 }
 
-function urlCount(count: number): string {
+export function urlCount(count: number): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "URL" : "URLs"}`;
 }
 
@@ -210,7 +215,7 @@ export function printScorecard(
   console.log("\n=== Fix first ===\n");
 
   if (scorecard.fixFirst.length === 0) {
-    console.log("  Nothing to fix — no scored finding lost points.");
+    console.log(`  ${NOTHING_TO_FIX}`);
     return;
   }
 
@@ -250,7 +255,8 @@ export function printScorecard(
   });
 }
 
-function describeDimension(entry: DimensionScore): [string, string?] {
+// The value and note for one dimension, shared with the report so the two agree.
+export function describeDimension(entry: DimensionScore): [string, string?] {
   if (entry.observational) return ["—", "observations, not scored"];
   if (entry.score !== null) return [String(Math.round(entry.score))];
 
@@ -259,7 +265,7 @@ function describeDimension(entry: DimensionScore): [string, string?] {
     : ["N/A", "no scored findings"];
 }
 
-function describeTotal(scorecard: Scorecard): [string, string?] {
+export function describeTotal(scorecard: Scorecard): [string, string?] {
   if (scorecard.total === null)
     return ["—", "not computed: access could not be measured, so gates could not be checked"];
 
