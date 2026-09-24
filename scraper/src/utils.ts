@@ -1,11 +1,13 @@
-import type {
-  Criterion,
-  DocumentCapture,
-  Finding,
-  Gate,
-  LlmsTxtCapture,
-  PageSnapshot,
-  Rulebook,
+import {
+  AGENTS,
+  type AccessCapture,
+  type Criterion,
+  type DocumentCapture,
+  type Finding,
+  type Gate,
+  type LlmsTxtCapture,
+  type PageSnapshot,
+  type Rulebook,
 } from "./types.ts";
 
 export function skipped(
@@ -128,6 +130,43 @@ export function llmsTxtFrom(overrides: Partial<LlmsTxtCapture> = {}): LlmsTxtCap
     body: VALID_LLMS_TXT,
     bytes: Buffer.byteLength(VALID_LLMS_TXT),
     error: null,
+    ...overrides,
+  };
+}
+
+const AGENT_BODY = "<html><body><p>Welcome to the test site.</p></body></html>";
+
+// A healthy site: every agent allowed, probed and let through, a completed
+// rate-limit ramp, and a robots.txt-listed sitemap that loads with a recent
+// lastmod. A Section A test overrides only the part it is about.
+export function accessFrom(overrides: Partial<AccessCapture> = {}): AccessCapture {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    robots: {
+      url: "https://test.invalid/robots.txt",
+      statusCode: 200,
+      body: "User-agent: *\nAllow: /\n\nSitemap: https://test.invalid/sitemap.xml\n",
+      error: null,
+    },
+    agentProbes: AGENTS.map((agent) => ({
+      agent,
+      statusCode: 200,
+      challenged: false,
+      body: AGENT_BODY,
+      error: null,
+    })),
+    rateLimit: { limitFoundAt: null, stoppedBy: null, error: null },
+    sitemaps: {
+      source: "robots.txt",
+      fetches: [
+        {
+          url: "https://test.invalid/sitemap.xml",
+          statusCode: 200,
+          body: `<urlset><url><loc>${TEST_URL}</loc><lastmod>${today}</lastmod></url></urlset>`,
+          error: null,
+        },
+      ],
+    },
     ...overrides,
   };
 }

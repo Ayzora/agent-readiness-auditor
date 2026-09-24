@@ -46,7 +46,7 @@ drift. What varies is the **scope** of the thing being fetched:
 
 - **Site-scope sections** (Section A) fetch resources that exist once per site
   — robots.txt, the sitemap, a rate-limit ramp. Nothing else can share those
-  bytes, so the section owns its own Phase 1 probes and exports
+  bytes, so the section owns its own Phase 1 capture and exports the async
   `runSectionAAudit(url, snapshot, rulebook)`. `runSectionXAudit(url)` is the shape for
   site-scope work only.
 - **Page-scope sections** (Sections B and C, and D–F when they land) all need the
@@ -57,7 +57,7 @@ drift. What varies is the **scope** of the thing being fetched:
   import from `section-b/`, exactly the cross-section reach forbidden below.
 
 So `scraper/src/section-b/` contains **only pure check functions and no
-network code whatsoever** — not the probes-plus-checks mix `section-a/` has.
+network code whatsoever** — not the capture-plus-checks mix `section-a/` has.
 
 `runSectionBAudit(snapshot, interactions, soft404Probe, rulebook)` is **synchronous on
 purpose**: a function that cannot `await` cannot fetch, so the signature
@@ -77,28 +77,51 @@ section, performs the page capture **once**, and hands the result to both.
 
 ### Section A
 
-`scraper/src/section-a/` holds every Section A fetch probe and check function,
-with `section-a/index.ts` as the section's single public entry point: it
-exports `runSectionAAudit(url, snapshot, rulebook)` — the URL for the site-scope probes,
-the snapshot's **raw** half as the baseline the UA probes are compared against.
+`scraper/src/section-a/` has the fetch/check split every other section has.
+`section-a/index.ts` is its single public entry point: the async
+`runSectionAAudit(url, snapshot, rulebook)` calls `captureAccess(url)` and then
+the synchronous `judgeAccess(url, capture, baselineRawHtml, rulebook)`, which
+returns the seven `access.*` findings. The snapshot's **raw** half is the
+baseline the agent probes are compared against.
 
-Section A's fetch probes (`section-a/ua-probe.ts`, `robots-audit.ts`,
-`rate-limit-probe.ts`, `sitemap.ts`) and checks
-(`payPerCrawlDetected`, `findPolicyDivergentAgents`,
-`findBaselineMismatchedAgents`, all in `ua-probe.ts`) cover: per-agent
-robots.txt allow/deny, a live UA probe per allowed agent, 402/pay-per-crawl
-detection, policy-vs-reality divergence (robots.txt says allow but the agent
-got challenged/blocked), baseline vs. agent text-length mismatch, the
-rate-limit probe, and sitemap presence/freshness. Not yet done, deliberately
-deferred: latency capture per UA probe, and sitemap coverage-gap-vs-crawl
-(blocked on the crawler, which doesn't exist yet).
+- **Phase 1** is `capture.ts`: `captureAccess(url)` fetches robots.txt once,
+  sends one agent probe per agent robots.txt allows on the audited page, runs
+  the rate-limit ramp and fetches the sitemaps, and returns one plain
+  **access capture** (`AccessCapture` in `types.ts`). It **never throws**: a
+  failed fetch leaves its fields null and an `error` on its own part of the
+  capture, so `index.ts` needs no `try`/`catch`. Every fetch goes through
+  `got-scraping` with an explicit timeout and `retry: { limit: 0 }`.
+- **Phase 2** is pure checks beside the helpers they share: `robots.ts`
+  (`readRobots`, `agentsToProbe`, `robotsAllowsAgents`), `agent-probes.ts`
+  (`probeOutcome`, `findPolicyDivergentAgents`, `payPerCrawlDetected`,
+  `findBaselineMismatchedAgents`), `rate-limit.ts` (`rateLimitStop`,
+  `rateLimit`) and `sitemap.ts` (`sitemapLoads`, `sitemapPresent`,
+  `sitemapFresh`). Phase 1 imports `agentsToProbe`, `rateLimitStop` and
+  `sitemapLoads` to decide what to fetch next, so both phases apply one rule.
 
-Section A's probes predate the never-throw discipline the capture layer
-follows: on an unreachable host `gotScraping` rejects out of
-`rate-limit-probe.ts`, so the root `index.ts` contains the call in a
-`try`/`catch` rather than letting a dead page cost the run its Section B
-findings. Fixing that in the probes is deferred along with migrating them off
-Crawlee — see the note in the fetch/analysis split below.
+Rules the section is built around, recorded in
+`specs/0007-section-a-correct-and-never-throw/spec.md`:
+
+- **robots.txt is parsed in Phase 2** with `robots-parser`, the Section G
+  split, so a test passes a robots.txt as a string. Its response follows
+  RFC 9309: a 4xx allows every agent, and a 5xx or no answer disallows every
+  agent, which fails `robots_allows_agents` and fires the cap-20 gate.
+- **Site root for the gate, audited page for the probes.**
+  `robots_allows_agents` judges each agent at the site root, so closing one
+  folder cannot cap a whole site; an agent is probed only if robots.txt allows
+  it on the audited page's path.
+- **Each agent probe lands in exactly one outcome** — got through, asked to
+  pay (402), blocked (challenged, or 400 and above but 402) or no answer — and
+  each check reads only its own, so one refusal is never charged twice.
+  `policy_divergence` counts blocked and no answer; `baseline_mismatch`
+  compares only agents that got through.
+- **A sitemap counts only when it loads as one**: a 200 whose body contains
+  `<urlset` or `<sitemapindex`. A robots.txt `Sitemap:` line or an HTML shell
+  answering 200 is not enough.
+
+Not yet done, deliberately deferred: latency capture per agent probe, and
+sitemap coverage-gap-vs-crawl (blocked on the crawler, which doesn't exist
+yet).
 
 ### Section B
 
@@ -117,9 +140,8 @@ defames. Every `skip` carries a distinct `reason` in its evidence.
 Criterion keys use the **dimension**, never the section folder:
 `render.text_coverage`, not `section-b.*`. See `GLOSSARY.md`.
 
-Section A returns `Finding`s too (`access.*` keys), from small check functions
-kept beside the probe whose data they read. Site-scope findings use the site
-root as their `url`.
+Section A returns `Finding`s too (`access.*` keys). Site-scope findings use
+the site root as their `url`.
 
 ### Section C
 
@@ -241,7 +263,7 @@ snapshots, fetches them under caps, and parses them with `pdfjs-dist`. Parsing
 lives there rather than in a check because it is I/O-shaped work with its own
 failure modes, and because that is what lets a check test build a
 `DocumentCapture` literal and skip the PDF library entirely. Like the capture
-layer and unlike Section A's older probes, it **never throws**: the fetches are
+layer and Section A's capture, it **never throws**: the fetches are
 sequential, so one timeout on document three must not cost the run documents
 four to ten.
 
@@ -262,7 +284,7 @@ exporting `captureLlmsTxt(url)`; `llms-txt.ts` is the pure check
 
 Like Section A and unlike B–F, the section owns its own Phase 1 work, because
 `/llms.txt` exists once per site and no page snapshot can supply it. Unlike
-Section A's older probes, this one follows the capture layer's never-throw
+Like Section A's capture, this one follows the capture layer's never-throw
 discipline, so `index.ts` needs no `try`/`catch` around it.
 
 Four rules the section is built around, recorded in
@@ -327,8 +349,10 @@ Rules it is built around, recorded in `specs/0006-scorecard/spec.md`:
 
 An unreachable site — `isUnreachable(snapshot)` in `page-snapshot.ts`, true
 when both halves are null — stops the run after the capture with one line and
-a non-zero exit. A Section A crash does not: access is then N/A and the total
-is withheld.
+a non-zero exit. Section A cannot leave access empty any more — its capture
+never throws and `robots_allows_agents` always returns `pass`, `warn` or
+`fail` — so the withheld-total path has no trigger in a normal run and stays
+only as a guard.
 
 Deliberately not built: persistence, reading back and diffing
 (`docs/scoring-pipeline.md` steps 4 and 12), and the sitewide text-coverage
@@ -356,9 +380,9 @@ Run from the repository root unless noted.
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
-cover Sections C, D, F and G, Section F's link discovery, the scorecard, the
-rulebook loader, the unreachable test and Section A's `policy_divergence`;
-the rest of Sections A and B is a follow-up.
+cover Sections A, C, D, F and G, Section F's link discovery, the scorecard,
+the rulebook loader and the unreachable test; Section B is a follow-up.
+Section A's Phase 1 fetches are verified by hand, not unit-tested.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
@@ -367,6 +391,9 @@ the rest of Sections A and B is a follow-up.
   F's `DocumentCapture`, so no test needs a PDF file or the PDF library, and
   `llmsTxtFrom(overrides)` the same for Section G's `LlmsTxtCapture` — its
   default is a valid file, so a case states only the field it is about.
+  `accessFrom(overrides)` does the same for Section A's `AccessCapture`; its
+  default is a healthy site — every agent allowed and let through, a completed
+  ramp, a robots.txt-listed sitemap with a recent `<lastmod>`.
   `findingFrom(overrides)` and `rulebookFrom(criteria, overrides)` do the same
   for the scorecard.
 - Tests load the real `criteria.yaml` through `loadRulebook()`, so a threshold
@@ -405,7 +432,7 @@ cp scraper/.env.example scraper/.env
 ### Workspace layout
 
 - `web/` — Next.js 16 (App Router), React 19, Tailwind 4.
-- `scraper/` — ESM TypeScript, built on Crawlee + got-scraping, run without a
+- `scraper/` — ESM TypeScript, built on got-scraping and Playwright, run without a
   build step (Node's type-stripping executes `.ts` files directly).
 
 Both are private packages sharing the single root `pnpm-lock.yaml`. If they
@@ -415,7 +442,7 @@ across `web`/`scraper` with relative paths.
 ### Scraper module resolution
 
 Relative imports in `scraper/src` use literal `.ts` extensions (e.g.
-`import { robotsAudit } from "./robots-audit.ts"` inside `section-a/`),
+`import { rateLimitStop } from "./rate-limit.ts"` inside `section-a/`),
 enabled by
 `allowImportingTsExtensions` in `scraper/tsconfig.json`. Node's built-in type
 stripping requires the imported extension to match the file on disk — it does
@@ -427,7 +454,7 @@ in this package using real `.ts` extensions.
 The spec calls this "the most important structural decision in the
 codebase," and it should shape anything added to `scraper`:
 
-- **Phase 1 (fetch)** does all network I/O — page snapshots, UA probes,
+- **Phase 1 (fetch)** does all network I/O — page snapshots, agent probes,
   rate-limit probing — and produces plain data (raw HTML, rendered DOM,
   headers, status, timing).
 - **Phase 2 (check)** is pure functions over that data: `(snapshot, rule) =>
@@ -435,11 +462,9 @@ codebase," and it should shape anything added to `scraper`:
 
 This is what will eventually allow re-scoring without re-crawling, offline
 unit tests against saved snapshots, and parallelizing only the slow phase.
-`section-a/robots-audit.ts` and `section-a/rate-limit-probe.ts` are
-Phase-1-only site-level probes for this reason; the check functions in
-`section-a/ua-probe.ts` (`payPerCrawlDetected`, `findPolicyDivergentAgents`,
-`findBaselineMismatchedAgents`) are the Phase-2 pure functions that consume
-their output.
+Section A's site-level fetches all live in `section-a/capture.ts` for this
+reason, and its checks are the Phase-2 pure functions that consume the access
+capture.
 
 Page-scope Phase 1 lives in `page-snapshot.ts` and `interaction-probe.ts`, and
 site-scope Phase 1 that is nobody's section in `soft-404-probe.ts` — all three
@@ -447,12 +472,6 @@ outside the section folders, because Sections C–F need the same bytes. Every
 Phase 1 module here degrades rather than throws: fields go null, an `error`
 string is populated, and the checks reading them return `skip`. One dead page
 must not abort an audit, and at 40 pages it must not.
-
-Section A's remaining probes are **deliberately not migrated** to the direct
-`got-scraping`/Playwright style, and not yet brought under the never-throw
-rule. Refactoring working network code with no test suite is a poor trade; now
-that Section B exists, that refactor is an informed decision to take
-separately rather than a guess.
 
 ### Planned data model (not yet implemented)
 
@@ -468,15 +487,19 @@ is a foreign key into the YAML file, not a DB table.
 
 ### Rate-limit probe safety constraints
 
-`scraper/src/section-a/rate-limit-probe.ts` intentionally puts load on someone else's
-infrastructure — treat any change to it as a safety-sensitive change, not
-just a perf one:
+The rate-limit ramp in `scraper/src/section-a/capture.ts` intentionally puts
+load on someone else's infrastructure — treat any change to it as a
+safety-sensitive change, not just a perf one:
 
-- Hard cap at ~10 req/s, ramped gently (1 → 2 → 4 → 8 req/s).
-- Aborts on first 429 or any `Retry-After` header.
-- Hits one cheap static asset repeatedly, never dynamic pages.
-- Per the spec, this check should stay opt-in and gated on verified domain
-  ownership once that exists — it isn't gated yet.
+- Runs on every audit against the audited page, with no opt-in flag and no
+  ownership check — about 45 requests over 12 seconds. This was a deliberate
+  call: it measures what an agent actually meets, and a cached static asset
+  may never reach the site's limiter.
+- Hard cap at ~10 req/s, ramped gently (1 → 2 → 4 → 8 req/s, 3 seconds each),
+  never following redirects.
+- Each request has a 10-second timeout.
+- Stops at the first 429, the first `Retry-After` header, or the first request
+  with no answer. A 5xx does not stop it.
 
 ## ACT Workflow
 

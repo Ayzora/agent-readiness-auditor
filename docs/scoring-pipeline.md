@@ -180,10 +180,11 @@ findings it holds. The mean is taken over unrounded scores, then rounded. An
 N/A dimension is left out and named beside the total; an observational one is
 neither counted nor named. Say 61.
 
-**Decided — no total without access.** When access is N/A — today, only when
-Section A crashed — no total is computed and the scorecard says why: the gates
-are access criteria, so a total without access is a total whose gates could
-not be checked.
+**Decided — no total without access.** When access is N/A no total is
+computed and the scorecard says why: the gates are access criteria, so a total
+without access is a total whose gates could not be checked. Since Spec 0007
+Section A never throws and `robots_allows_agents` always returns a verdict, so
+this path has no trigger in a normal run and stays as a guard.
 
 ## Step 8 — gate
 

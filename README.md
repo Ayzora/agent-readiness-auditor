@@ -1,6 +1,6 @@
 # agent-readiness-auditor
 
-A pnpm workspace containing a Crawlee-based scraper and a Next.js web front end.
+A pnpm workspace containing a got-scraping and Playwright scraper and a Next.js web front end.
 
 > The one-line description above is a placeholder — replace it with what the
 > auditor actually measures once that's settled.
@@ -48,7 +48,7 @@ To run a command against a single package directly, use a filter — for example
 ```
 .
 ├── web/       Next.js 16 (App Router), React 19, Tailwind 4
-└── scraper/   ESM TypeScript entrypoint built on Crawlee, run without a build
+└── scraper/   ESM TypeScript entrypoint built on got-scraping, run without a build
 ```
 
 Both are private packages and share the single root `pnpm-lock.yaml`. When the

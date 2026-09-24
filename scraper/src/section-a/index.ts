@@ -1,44 +1,42 @@
-import { rateLimit, rateLimitProbe } from "./rate-limit-probe.ts";
-import { robotsAllowsAgents, robotsAudit } from "./robots-audit.ts";
+import { captureAccess } from "./capture.ts";
+import { robotsAllowsAgents } from "./robots.ts";
 import {
   findBaselineMismatchedAgents,
   findPolicyDivergentAgents,
   payPerCrawlDetected,
-  userAgentProb,
-} from "./ua-probe.ts";
-import {
-  hasSitemap,
-  sitemapFresh,
-  sitemapFreshness,
-  sitemapInRobots,
-  sitemapPresent,
-} from "./sitemap.ts";
-import type { Finding, PageSnapshot, Rulebook } from "../types.ts";
+} from "./agent-probes.ts";
+import { rateLimit } from "./rate-limit.ts";
+import { sitemapFresh, sitemapPresent } from "./sitemap.ts";
+import type { AccessCapture, Finding, PageSnapshot, Rulebook } from "../types.ts";
 
 export async function runSectionAAudit(
   url: string,
   snapshot: PageSnapshot,
   rulebook: Rulebook,
 ): Promise<Finding[]> {
+  const capture = await captureAccess(url);
+
+  return judgeAccess(url, capture, snapshot.rawHtml, rulebook);
+}
+
+// Synchronous on purpose, like Sections B–F: it cannot fetch, so a test builds
+// an access capture literal and needs no network.
+export function judgeAccess(
+  url: string,
+  capture: AccessCapture,
+  baselineRawHtml: string | null,
+  rulebook: Rulebook,
+): Finding[] {
   // Site-scope findings are keyed on the site root, not the audited page.
   const siteUrl = new URL("/", url).href;
 
-  const robotsAuditResult = await robotsAudit(url);
-  const uaProbeResults = await userAgentProb(robotsAuditResult.results, url);
-  const rateLimitResult = await rateLimitProbe(url);
-  const sitemapExists = await hasSitemap(url);
-  const sitemapUrlsFromRobots = await sitemapInRobots(url);
-  const freshness = await sitemapFreshness(
-    sitemapUrlsFromRobots[0] ?? new URL("/sitemap.xml", url).href,
-  );
-
   return [
-    robotsAllowsAgents(siteUrl, robotsAuditResult),
-    findPolicyDivergentAgents(url, uaProbeResults),
-    payPerCrawlDetected(url, uaProbeResults),
-    findBaselineMismatchedAgents(url, snapshot.rawHtml, uaProbeResults, rulebook),
-    rateLimit(siteUrl, rateLimitResult),
-    sitemapPresent(siteUrl, sitemapExists, sitemapUrlsFromRobots),
-    sitemapFresh(siteUrl, sitemapExists, freshness, rulebook),
+    robotsAllowsAgents(url, capture.robots),
+    findPolicyDivergentAgents(url, capture.agentProbes),
+    payPerCrawlDetected(url, capture.agentProbes),
+    findBaselineMismatchedAgents(url, baselineRawHtml, capture.agentProbes, rulebook),
+    rateLimit(siteUrl, capture.rateLimit),
+    sitemapPresent(siteUrl, capture.sitemaps),
+    sitemapFresh(siteUrl, capture.sitemaps, rulebook),
   ];
 }

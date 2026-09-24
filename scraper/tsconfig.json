@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2023",
-    "lib": ["es2023"],
+    // linkedom's query results are typed with the DOM's Element and friends.
+    "lib": ["es2023", "dom", "dom.iterable"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],

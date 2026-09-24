@@ -1,80 +1,63 @@
-import { RobotsTxtFile } from "crawlee";
-import { type Finding, type Rulebook, type SitemapFreshness } from "../types.ts";
+import type { AccessCapture, Finding, Rulebook, SitemapFetch } from "../types.ts";
 import { skipped, thresholdsFor } from "../utils.ts";
 
-export async function sitemapInRobots(url: string): Promise<string[]> {
-    const root = new URL("/", url).href;
-    try {
-        const robots = await RobotsTxtFile.find(root);
-        return robots.getSitemaps({ enqueueStrategy: "all" });
-    } catch {
-        return [];
-    }
+// A 200 is not presence: a single-page app answers /sitemap.xml with its shell.
+export function sitemapLoads(fetch: SitemapFetch): boolean {
+  return (
+    fetch.statusCode === 200 &&
+    fetch.body !== null &&
+    (fetch.body.includes("<urlset") || fetch.body.includes("<sitemapindex"))
+  );
 }
 
-export async function hasSitemap(url: string): Promise<boolean> {
-
-    const sitemapsInRobots = await sitemapInRobots(url);
-    if (sitemapsInRobots.length > 0) {
-        return true
-    }
-
-    const sitemap = new URL("/sitemap.xml", url).href;
-    try {
-        const response = await fetch(sitemap, { signal: AbortSignal.timeout(10_000) });
-        return response.ok;
-    } catch {
-        return false;
-    }
+function whyNotLoaded(fetch: SitemapFetch): string {
+  if (fetch.statusCode === null) return fetch.error ?? "no answer";
+  return fetch.statusCode === 200 ? "not a sitemap" : `HTTP ${fetch.statusCode}`;
 }
 
-export async function sitemapFreshness(sitemapUrl: string): Promise<SitemapFreshness> {
-    try {
-        const response = await fetch(sitemapUrl, { signal: AbortSignal.timeout(10_000) });
-        const xml = await response.text();
+export function sitemapPresent(url: string, sitemaps: AccessCapture["sitemaps"]): Finding {
+  const loaded = sitemaps.fetches.find(sitemapLoads) ?? null;
+  const listedInRobots = sitemaps.source === "robots.txt";
+  const status = loaded ? (listedInRobots ? "pass" : "warn") : "fail";
 
-        const dates = [...xml.matchAll(/<lastmod>(.*?)<\/lastmod>/g)]
-            .map((match) => new Date(match[1]))
-            .filter((date) => !isNaN(date.getTime()));
-
-        if (dates.length === 0) {
-            return { mostRecentLastmod: null, daysSinceMostRecent: null };
-        }
-
-        const mostRecent = new Date(Math.max(...dates.map((date) => date.getTime())));
-        const daysSinceMostRecent = Math.floor((Date.now() - mostRecent.getTime()) / 86_400_000);
-
-        return { mostRecentLastmod: mostRecent.toISOString(), daysSinceMostRecent };
-    } catch {
-        return { mostRecentLastmod: null, daysSinceMostRecent: null };
-    }
-}
-
-export function sitemapPresent(url: string, exists: boolean, urlsFromRobots: string[]): Finding {
-    return {
-        criterionKey: "access.sitemap_present",
-        url,
-        status: exists ? (urlsFromRobots.length > 0 ? "pass" : "warn") : "fail",
-        evidence: { exists, urlsFromRobots },
-    };
+  return {
+    criterionKey: "access.sitemap_present",
+    url,
+    status,
+    evidence: {
+      listedInRobots,
+      loaded: loaded?.url ?? null,
+      notLoaded: sitemaps.fetches
+        .filter((fetch) => !sitemapLoads(fetch))
+        .map((fetch) => ({ url: fetch.url, why: whyNotLoaded(fetch) })),
+    },
+  };
 }
 
 export function sitemapFresh(
-    url: string,
-    exists: boolean,
-    freshness: SitemapFreshness,
-    rulebook: Rulebook,
+  url: string,
+  sitemaps: AccessCapture["sitemaps"],
+  rulebook: Rulebook,
 ): Finding {
-    const criterionKey = "access.sitemap_freshness";
-    const { warn } = thresholdsFor(rulebook, criterionKey);
+  const criterionKey = "access.sitemap_freshness";
+  const { warn } = thresholdsFor(rulebook, criterionKey);
 
-    if (!exists) return skipped(criterionKey, url, "no sitemap");
-    if (freshness.daysSinceMostRecent === null) return skipped(criterionKey, url, "no readable lastmod");
+  const loaded = sitemaps.fetches.find(sitemapLoads);
+  if (!loaded) return skipped(criterionKey, url, "no sitemap");
 
-    return {
-        criterionKey,
-        url,
-        status: freshness.daysSinceMostRecent > warn ? "warn" : "pass",
-        evidence: { ...freshness },
-    };
+  const dates = [...loaded.body!.matchAll(/<lastmod>(.*?)<\/lastmod>/g)]
+    .map((match) => new Date(match[1]))
+    .filter((date) => !isNaN(date.getTime()));
+
+  if (dates.length === 0) return skipped(criterionKey, url, "no readable lastmod");
+
+  const mostRecent = new Date(Math.max(...dates.map((date) => date.getTime())));
+  const daysSinceMostRecent = Math.floor((Date.now() - mostRecent.getTime()) / 86_400_000);
+
+  return {
+    criterionKey,
+    url,
+    status: daysSinceMostRecent > warn ? "warn" : "pass",
+    evidence: { sitemap: loaded.url, mostRecentLastmod: mostRecent.toISOString(), daysSinceMostRecent },
+  };
 }

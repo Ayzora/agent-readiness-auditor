@@ -21,30 +21,52 @@ export const AGENTS = [
 
 export type Agent = (typeof AGENTS)[number];
 
-export interface RobotsAudit {
-  results: Record<Agent, boolean>;
-  passPercentage: number;
-}
-
-export interface RateLimitProbe {
-  passed: boolean;
-  limitFoundAt: number | null;
-}
-
-  export interface SitemapFreshness {
-    mostRecentLastmod: string | null;
-    daysSinceMostRecent: number | null;
-}
-
-export interface ProbeResult{
-  htmlContent: string | null;
+// The one fetch of /robots.txt. Its body is parsed by the checks, not here,
+// so a test can pass a robots.txt as a string.
+export interface RobotsTxtCapture {
+  url: string;
   statusCode: number | null;
-  isChallenged: boolean | null;
-
+  body: string | null;
+  error: string | null;
 }
 
-export interface AgentsProbeResult extends ProbeResult {
-  userAgent: Agent;
+// One request for the audited page under an agent's user-agent string.
+// `statusCode` is null when no answer arrived, and `error` then says why.
+export interface AgentProbe {
+  agent: Agent;
+  statusCode: number | null;
+  challenged: boolean;
+  body: string | null;
+  error: string | null;
+}
+
+export type RateLimitStop = "429" | "retry-after" | "no answer";
+
+// Both null when the ramp completed without meeting a limit.
+export interface RateLimitCapture {
+  limitFoundAt: number | null;
+  stoppedBy: RateLimitStop | null;
+  // Why the request that stopped the ramp got no answer.
+  error: string | null;
+}
+
+export interface SitemapFetch {
+  url: string;
+  statusCode: number | null;
+  body: string | null;
+  error: string | null;
+}
+
+// Everything Section A fetches, once per run. Fields go null and `error` is
+// populated rather than throwing, so one dead fetch costs only its own findings.
+export interface AccessCapture {
+  robots: RobotsTxtCapture;
+  // Only the agents robots.txt allows on the audited page, one probe each.
+  agentProbes: AgentProbe[];
+  rateLimit: RateLimitCapture;
+  // "robots.txt" when its Sitemap: lines were tried, in order until one loaded;
+  // "default" when it listed none and /sitemap.xml was tried instead.
+  sitemaps: { source: "robots.txt" | "default"; fetches: SitemapFetch[] };
 }
 
 export type FindingStatus = "pass" | "fail" | "warn" | "skip";

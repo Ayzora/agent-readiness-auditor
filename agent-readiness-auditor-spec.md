@@ -479,6 +479,8 @@ This is the only check that puts meaningful load on someone else's infrastructur
 
 Ownership verification is worth building anyway — it gates this check and gives you a natural free/paid tier boundary later.
 
+**As built** (Spec 0007), two of these constraints were deliberately not followed. The probe runs on **every audit, with no opt-in and no ownership gate**, and it targets **the audited page**, not a static asset. About 45 requests over 12 seconds, never above 8 req/s and stopping at the first sign of a limit, was judged not to be an attack, and the audited page measures what an agent actually meets — a cached static asset may never reach the site's limiter. Each request has a 10-second timeout, and the ramp stops on a 429, a `Retry-After` header or a request with no answer; a 5xx does not stop it.
+
 ---
 
 ## 9\. The re-run — the retention loop

@@ -55,11 +55,6 @@ export function printDocumentCapture(probe: DocumentProbe): void {
   }
 }
 
-export function printSectionAFailure(error: unknown): void {
-  console.log("\n=== Section A — access ===\n");
-  console.log(`  failed: ${error instanceof Error ? error.message : String(error)}`);
-}
-
 export function printFindings(title: string, findings: Finding[]): void {
   const counts = STATUS_ORDER.map((status) => `${countOf(findings, status)} ${status}`).join(", ");
   console.log(`\n=== ${title} === (${findings.length} findings: ${counts})\n`);

@@ -9,7 +9,6 @@ import {
   printDocumentCapture,
   printFindings,
   printScorecard,
-  printSectionAFailure,
 } from "./print-report.ts";
 import { runSectionCAudit } from "./section-c/index.ts";
 import { runSectionDAudit } from "./section-d/index.ts";
@@ -47,13 +46,7 @@ function section(title: string, sectionFindings: Finding[]): void {
   findings.push(...sectionFindings);
 }
 
-// A Section A crash costs access its findings, not the run: access is then
-// N/A and the scorecard withholds the total rather than show one without it.
-try {
-  section("Section A — access", await runSectionAAudit(url, snapshot, rulebook));
-} catch (error) {
-  printSectionAFailure(error);
-}
+section("Section A — access", await runSectionAAudit(url, snapshot, rulebook));
 
 section("Section B — render", runSectionBAudit(snapshot, interactions, soft404, rulebook));
 
