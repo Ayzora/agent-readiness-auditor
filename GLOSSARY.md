@@ -92,6 +92,12 @@ the findings are the record.
 _Avoid_: audit (the whole run), report (how a scorecard is shown), result,
 verdict
 
+**Report**:
+The Markdown document that shows one run's scorecard to the person who has to
+fix the site — the rulebook's words beside the findings' evidence. A view
+regenerable from the findings at any time, never the record.
+_Avoid_: scorecard, audit, summary, output
+
 **Text coverage ratio**:
 The proportion of a page's text present without JavaScript, measured as raw
 text length over rendered text length.
