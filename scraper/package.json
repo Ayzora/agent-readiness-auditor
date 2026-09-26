@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "@supabase/server": "^1.8.0",
+    "@supabase/supabase-js": "^2.117.2",
     "got-scraping": "^4.2.1",
     "linkedom": "^0.18.13",
     "pdfjs-dist": "^6.3.289",
