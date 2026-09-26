@@ -57,6 +57,17 @@ DOM of the same resolved address, plus status, headers and timing. Shared
 input for every page-scope section.
 _Avoid_: fetch, crawl, page
 
+**Site**:
+The website being audited, identified by its host with `www.` ignored, so
+`example.com` and `www.example.com` are one site. A site has many audits over
+time.
+_Avoid_: domain, target, property
+
+**Audit**:
+One use of the tool against one site — the pages it sampled, every finding it
+produced, and the scorecard read from them — kept as one saved record.
+_Avoid_: run, crawl, scan, job (as the name of the saved record)
+
 **Finding**:
 One check, one subject, one outcome — the subject being a page, the site, or a
 linked document. Carries the criterion key, status and evidence only — never
