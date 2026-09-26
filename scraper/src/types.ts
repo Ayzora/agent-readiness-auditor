@@ -79,7 +79,7 @@ export interface AccessCapture extends SiteFiles {
 
 export interface Template {
   label: string;
-  // In sitemap order; its length is the template's size.
+  // In sitemap order. Only sampling reads it; everything after reads `size`.
   urls: string[];
   sampled: string[];
 }
@@ -99,6 +99,31 @@ export type NoUsableSitemap = "no sitemap" | "sitemap index" | "no eligible URLs
 export type SitemapSampling =
   | { kind: "sample"; sample: SiteSample }
   | { kind: "fallback"; reason: NoUsableSitemap };
+
+// A template as the printers and the store see it: its size, not its URL list.
+export interface TemplateCoverage {
+  label: string;
+  size: number;
+  sampled: string[];
+}
+
+export interface SampleCoverage {
+  kind: "sample";
+  sitemapUrl: string;
+  eligibleCount: number;
+  // Largest first.
+  templates: TemplateCoverage[];
+  templatesLeftOut: number;
+  // Every sampled page, in capture order; the typed URL is always first.
+  pages: string[];
+  // Sampled pages that were captured and reached, so their findings exist.
+  audited: string[];
+  unreachable: string[];
+  notCaptured: string[];
+}
+
+// What the run covered: Spec 0008's sample, or the one page of its fallback.
+export type ReportCoverage = SampleCoverage | { kind: "fallback"; reason: NoUsableSitemap };
 
 export interface TemplateBreakdownLine {
   label: string;

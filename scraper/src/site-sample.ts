@@ -1,4 +1,5 @@
 import type {
+  SampleCoverage,
   SiteSample,
   SitemapCapture,
   SitemapFetch,
@@ -176,18 +177,31 @@ function quotaFor(template: Template, rank: number): number {
   return template.urls.length >= LARGE_TEMPLATE_MIN_URLS ? LARGE_TEMPLATE_QUOTA : 1;
 }
 
-// Printed only: template size never enters a score.
-export function templateBreakdown(
-  subjects: string[],
+// After sampling, a template's URL list is only ever counted, so the stored
+// shape keeps the count and every printer reads it from there.
+export function sampleCoverage(
   sample: SiteSample,
-  audited: string[],
-): TemplateBreakdownLine[] {
-  return sample.templates.flatMap((template) => {
-    const auditedHere = template.sampled.filter((url) => audited.includes(url));
+  run: { audited: string[]; unreachable: string[]; notCaptured: string[] },
+): SampleCoverage {
+  return {
+    kind: "sample",
+    sitemapUrl: sample.sitemapUrl,
+    eligibleCount: sample.eligibleCount,
+    templates: sample.templates.map(({ label, urls, sampled }) => ({ label, size: urls.length, sampled })),
+    templatesLeftOut: sample.templatesLeftOut,
+    pages: sample.pages,
+    ...run,
+  };
+}
+
+// Printed only: template size never enters a score.
+export function templateBreakdown(subjects: string[], coverage: SampleCoverage): TemplateBreakdownLine[] {
+  return coverage.templates.flatMap((template) => {
+    const auditedHere = template.sampled.filter((url) => coverage.audited.includes(url));
     const affected = auditedHere.filter((url) => subjects.includes(url)).length;
     return affected === 0
       ? []
-      : [{ label: template.label, affected, audited: auditedHere.length, size: template.urls.length }];
+      : [{ label: template.label, affected, audited: auditedHere.length, size: template.size }];
   });
 }
 

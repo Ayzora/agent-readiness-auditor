@@ -2,7 +2,7 @@
 type: Work Item
 title: Store template size instead of the URL list
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -23,11 +23,11 @@ Define the stored coverage shape — `ReportCoverage` with each template as `{ l
 
 ## Acceptance criteria
 
-- [ ] A coverage type exists whose templates carry `size: number` and no `urls`.
-- [ ] `renderReport`, the Pages block and `templateBreakdown` read a template's size from that shape. None of them reads `template.urls`.
-- [ ] `sampleSite` still returns templates with their full `urls` lists, and `index.ts` converts to the stored shape before printing.
-- [ ] A `pnpm scraper <url>` run prints the same Pages block, Fix first template lines and report text as before the change.
-- [ ] `pnpm lint` and `pnpm --filter scraper test` pass, with existing tests updated only where they build the changed shape.
+- [x] A coverage type exists whose templates carry `size: number` and no `urls`.
+- [x] `renderReport`, the Pages block and `templateBreakdown` read a template's size from that shape. None of them reads `template.urls`.
+- [x] `sampleSite` still returns templates with their full `urls` lists, and `index.ts` converts to the stored shape before printing.
+- [x] A `pnpm scraper <url>` run prints the same Pages block, Fix first template lines and report text as before the change.
+- [x] `pnpm lint` and `pnpm --filter scraper test` pass, with existing tests updated only where they build the changed shape.
 
 ## Covers
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { SiteSample, SitemapCapture, SitemapSampling } from "./types.ts";
-import { sampleSite, templateBreakdown } from "./site-sample.ts";
+import { sampleCoverage, sampleSite, templateBreakdown } from "./site-sample.ts";
 
 const SITE = "https://test.invalid";
 
@@ -254,6 +254,24 @@ test("sampleSite: <loc> values are read through CDATA and XML entities", () => {
   assert.deepEqual(sampled("/", body).pages.map(pathOf), ["/", "/about", "/search?q=a&page=2"]);
 });
 
+test("sampleCoverage: each template keeps its size and sampled pages, not its URL list", () => {
+  const sample = sampled("/", urlset(...numbered("/products/p", 60), "/about"));
+
+  const coverage = sampleCoverage(sample, {
+    audited: sample.pages,
+    unreachable: [],
+    notCaptured: [],
+  });
+
+  assert.deepEqual(coverage.templates, [
+    { label: "/products/*", size: 60, sampled: sampledPaths(sample, "/products/*").map((path) => SITE + path) },
+    { label: "/about", size: 1, sampled: [`${SITE}/about`] },
+    { label: "/", size: 1, sampled: [`${SITE}/`] },
+  ]);
+  assert.equal(coverage.eligibleCount, sample.eligibleCount);
+  assert.deepEqual(coverage.pages, sample.pages);
+});
+
 test("templateBreakdown: one line per template holding an affected page", () => {
   const sample = sampled(
     "/",
@@ -263,8 +281,7 @@ test("templateBreakdown: one line per template holding an affected page", () => 
 
   const lines = templateBreakdown(
     [`${SITE}/products/p0`, `${SITE}/products/p2`, `${SITE}/pricing`],
-    sample,
-    audited,
+    sampleCoverage(sample, { audited, unreachable: [], notCaptured: [] }),
   );
 
   assert.deepEqual(lines, [

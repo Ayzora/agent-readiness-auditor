@@ -10,9 +10,10 @@ import type {
   NoUsableSitemap,
   PageCapture,
   PageSnapshot,
+  ReportCoverage,
   Rulebook,
+  SampleCoverage,
   Scorecard,
-  SiteSample,
 } from "./types.ts";
 
 const STATUS_ORDER = ["fail", "warn", "skip", "pass"] as const;
@@ -40,19 +41,17 @@ export function printFallbackNotice(reason: NoUsableSitemap, url: string): void 
   console.log(`${fallbackNotice(reason, url)}\n`);
 }
 
-export function printPages(sample: SiteSample, captures: PageCapture[], notStarted: string[]): void {
-  const sampled = sample.templates.filter((template) => template.sampled.length > 0);
+export function printPages(coverage: SampleCoverage): void {
+  const sampled = coverage.templates.filter((template) => template.sampled.length > 0);
   const labelWidth = Math.max(...sampled.map((template) => template.label.length)) + 2;
-  const sizeWidth = Math.max(...sampled.map((template) => urlCount(template.urls.length).length)) + 3;
-  const unreachable = captures
-    .filter(({ snapshot }) => isUnreachable(snapshot))
-    .map(({ snapshot }) => snapshot.url);
+  const sizeWidth = Math.max(...sampled.map((template) => urlCount(template.size).length)) + 3;
+  const { unreachable, notCaptured } = coverage;
 
   console.log("=== Pages ===\n");
-  console.log(`  sitemap         ${sample.sitemapUrl}`);
-  console.log(`  eligible URLs   ${sample.eligibleCount.toLocaleString("en-US")}`);
-  console.log(`  templates       ${sample.templates.length}`);
-  console.log(`  sampled pages   ${sample.pages.length}`);
+  console.log(`  sitemap         ${coverage.sitemapUrl}`);
+  console.log(`  eligible URLs   ${coverage.eligibleCount.toLocaleString("en-US")}`);
+  console.log(`  templates       ${coverage.templates.length}`);
+  console.log(`  sampled pages   ${coverage.pages.length}`);
   console.log("");
 
   for (const template of sampled) {
@@ -61,13 +60,13 @@ export function printPages(sample: SiteSample, captures: PageCapture[], notStart
       return pathname + search;
     });
     console.log(
-      `  ${template.label.padEnd(labelWidth)}${urlCount(template.urls.length).padEnd(sizeWidth)}${template.sampled.length} sampled   ${paths.join("  ")}`,
+      `  ${template.label.padEnd(labelWidth)}${urlCount(template.size).padEnd(sizeWidth)}${template.sampled.length} sampled   ${paths.join("  ")}`,
     );
   }
 
   console.log("");
-  console.log(`  not sampled     ${sample.templatesLeftOut} templates, over the ${MAX_SAMPLED_PAGES}-page cap`);
-  console.log(`  not captured    ${notStarted.length} pages, over the ${CAPTURE_LIMIT_MS / 60_000}-minute limit`);
+  console.log(`  not sampled     ${coverage.templatesLeftOut} templates, over the ${MAX_SAMPLED_PAGES}-page cap`);
+  console.log(`  not captured    ${notCaptured.length} pages, over the ${CAPTURE_LIMIT_MS / 60_000}-minute limit`);
   console.log(`  unreachable     ${unreachable.length === 0 ? "none" : unreachable.length}`);
   for (const url of unreachable) console.log(`                    ${url}`);
 }
@@ -195,7 +194,7 @@ function truncate(text: string): string {
 export function printScorecard(
   scorecard: Scorecard,
   rulebook: Rulebook,
-  sampled?: { sample: SiteSample; audited: string[] },
+  coverage: ReportCoverage,
 ): void {
   console.log("\n=== Scorecard ===\n");
 
@@ -239,8 +238,8 @@ export function printScorecard(
       console.log(`${indent}Affected: ${subjects.length}`);
       for (const subject of subjects) console.log(`${indent}  ${subject}`);
     }
-    if (sampled && criterion.scope === "page") {
-      const lines = templateBreakdown(subjects, sampled.sample, sampled.audited).map((line) => ({
+    if (coverage.kind === "sample" && criterion.scope === "page") {
+      const lines = templateBreakdown(subjects, coverage).map((line) => ({
         label: line.label,
         share: `${line.affected} of ${line.audited} sampled`,
         size: `(${urlCount(line.size)} in sitemap)`,

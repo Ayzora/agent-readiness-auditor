@@ -2,7 +2,7 @@ import { capturePages } from "./capture-pages.ts";
 import { isUnreachable } from "./page-snapshot.ts";
 import { soft404Probe } from "./soft-404-probe.ts";
 import { captureSiteFiles } from "./site-files.ts";
-import { sampleSite } from "./site-sample.ts";
+import { sampleCoverage, sampleSite } from "./site-sample.ts";
 import { runSectionAAudit } from "./section-a/index.ts";
 import { runSectionBAudit } from "./section-b/index.ts";
 import { loadRulebook } from "./rulebook.ts";
@@ -21,8 +21,8 @@ import { runSectionFAudit } from "./section-f/index.ts";
 import { runSectionGAudit } from "./section-g/index.ts";
 import { captureDocuments } from "./document-probe.ts";
 import { scoreFindings } from "./scorecard.ts";
-import { renderReport, type ReportCoverage } from "./report.ts";
-import type { Finding } from "./types.ts";
+import { renderReport } from "./report.ts";
+import type { Finding, ReportCoverage } from "./types.ts";
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -65,8 +65,20 @@ if (audited.length === 0) {
   process.exit(1);
 }
 
-if (sample) {
-  printPages(sample, captures, notStarted);
+// The shape every printer reads: each template's size, not its URL list.
+const coverage: ReportCoverage =
+  sampling.kind === "sample"
+    ? sampleCoverage(sampling.sample, {
+        audited: snapshots.map((snapshot) => snapshot.url),
+        unreachable: captures
+          .filter(({ snapshot }) => isUnreachable(snapshot))
+          .map(({ snapshot }) => snapshot.url),
+        notCaptured: notStarted,
+      })
+    : { kind: "fallback", reason: sampling.reason };
+
+if (coverage.kind === "sample") {
+  printPages(coverage);
   printCaptureLines(captures);
 } else {
   printCapture(captures[0].snapshot, captures[0].interactions);
@@ -117,24 +129,7 @@ section(
 
 const scorecard = scoreFindings(findings, rulebook);
 
-printScorecard(
-  scorecard,
-  rulebook,
-  sample ? { sample, audited: snapshots.map((snapshot) => snapshot.url) } : undefined,
-);
-
-const coverage: ReportCoverage =
-  sampling.kind === "sample"
-    ? {
-        kind: "sample",
-        sample: sampling.sample,
-        audited: snapshots.map((snapshot) => snapshot.url),
-        unreachable: captures
-          .filter(({ snapshot }) => isUnreachable(snapshot))
-          .map(({ snapshot }) => snapshot.url),
-        notCaptured: notStarted,
-      }
-    : { kind: "fallback", reason: sampling.reason };
+printScorecard(scorecard, rulebook, coverage);
 
 await saveReport(new Date());
 

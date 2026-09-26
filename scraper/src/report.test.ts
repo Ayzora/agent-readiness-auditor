@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { findingFrom, rulebookFrom } from "./utils.ts";
-import { renderReport, type ReportCoverage } from "./report.ts";
+import { renderReport } from "./report.ts";
 import { scoreFindings } from "./scorecard.ts";
-import { AGENTS, type Finding, type Rulebook, type SiteSample } from "./types.ts";
+import { AGENTS, type Finding, type ReportCoverage, type Rulebook, type SampleCoverage } from "./types.ts";
 
 const SITE = "https://example.com/";
 const TYPED = "https://example.com/";
@@ -89,22 +89,18 @@ function agentRow(markdown: string, agent: string): string {
   return lineStarting(section(markdown, "Access reality check"), `| ${agent} |`);
 }
 
-const sample: SiteSample = {
+const sampledCoverage: SampleCoverage = {
+  kind: "sample",
   sitemapUrl: "https://example.com/sitemap.xml",
   eligibleCount: 2410,
   templates: [
-    { label: "/products/*", urls: Array.from({ length: 2140 }, (_, index) => (index === 0 ? RED_SHOE : index === 1 ? BLUE_HAT : `https://example.com/products/p${index}`)), sampled: [RED_SHOE, BLUE_HAT] },
-    { label: "/", urls: [TYPED], sampled: [TYPED] },
-    { label: "/pricing", urls: [PRICING], sampled: [PRICING] },
-    { label: "/careers", urls: ["https://example.com/careers"], sampled: [] },
+    { label: "/products/*", size: 2140, sampled: [RED_SHOE, BLUE_HAT] },
+    { label: "/", size: 1, sampled: [TYPED] },
+    { label: "/pricing", size: 1, sampled: [PRICING] },
+    { label: "/careers", size: 1, sampled: [] },
   ],
-  pages: [TYPED, RED_SHOE, BLUE_HAT, PRICING],
   templatesLeftOut: 1,
-};
-
-const sampledCoverage: ReportCoverage = {
-  kind: "sample",
-  sample,
+  pages: [TYPED, RED_SHOE, BLUE_HAT, PRICING],
   audited: [TYPED, RED_SHOE, BLUE_HAT],
   unreachable: [PRICING],
   notCaptured: [],
@@ -173,7 +169,7 @@ test("renderReport: Coverage names the templates left out, the pages not capture
 
 test("renderReport: Coverage says nothing about caps, limits or unreachable pages that did not apply", () => {
   const coverage = section(
-    report(healthyAccess(), { ...sampledCoverage, sample: { ...sample, templatesLeftOut: 0 }, unreachable: [] }),
+    report(healthyAccess(), { ...sampledCoverage, templatesLeftOut: 0, unreachable: [] }),
     "Coverage",
   );
 
@@ -399,10 +395,7 @@ test("renderReport: site text cannot break a table or the formatting", () => {
   ];
   const markdown = report(findings, {
     ...sampledCoverage,
-    sample: {
-      ...sample,
-      templates: [{ label: "/a|b", urls: ["https://example.com/a|b"], sampled: ["https://example.com/a|b"] }],
-    },
+    templates: [{ label: "/a|b", size: 1, sampled: ["https://example.com/a|b"] }],
   });
 
   // A pipe inside a table cell is escaped, so the row keeps its four cells.

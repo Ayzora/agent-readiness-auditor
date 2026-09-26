@@ -12,23 +12,10 @@ import {
   type Agent,
   type Criterion,
   type Finding,
-  type NoUsableSitemap,
+  type ReportCoverage,
   type Rulebook,
   type Scorecard,
-  type SiteSample,
 } from "./types.ts";
-
-// What the run covered: Spec 0008's sample, or the one page of its fallback.
-export type ReportCoverage =
-  | {
-      kind: "sample";
-      sample: SiteSample;
-      // Sampled pages that were captured and reached, so their findings exist.
-      audited: string[];
-      unreachable: string[];
-      notCaptured: string[];
-    }
-  | { kind: "fallback"; reason: NoUsableSitemap };
 
 export interface ReportInput {
   // The typed URL: the host in the title, and the page the agents were probed on.
@@ -68,24 +55,23 @@ export function renderReport(input: ReportInput): string {
 function coverageSection(coverage: ReportCoverage, url: string): string {
   if (coverage.kind === "fallback") return fallbackNotice(coverage.reason, code(url));
 
-  const { sample } = coverage;
-  const sampled = sample.templates.filter((template) => template.sampled.length > 0);
+  const sampled = coverage.templates.filter((template) => template.sampled.length > 0);
   const lines = [
-    `Sampled ${count(sample.pages.length, "page")} from ${count(sampled.length, "template")}, out of ${sample.eligibleCount.toLocaleString("en-US")} eligible URLs in ${code(sample.sitemapUrl)}.`,
+    `Sampled ${count(coverage.pages.length, "page")} from ${count(sampled.length, "template")}, out of ${coverage.eligibleCount.toLocaleString("en-US")} eligible URLs in ${code(coverage.sitemapUrl)}.`,
     table(
       ["Template", "URLs in sitemap", "Sampled", "Sampled pages"],
       sampled.map((template) => [
         code(template.label),
-        template.urls.length.toLocaleString("en-US"),
+        template.size.toLocaleString("en-US"),
         String(template.sampled.length),
         template.sampled.map(code).join(", "),
       ]),
     ),
   ];
 
-  if (sample.templatesLeftOut > 0)
+  if (coverage.templatesLeftOut > 0)
     lines.push(
-      `${count(sample.templatesLeftOut, "template")} not sampled because of the ${MAX_SAMPLED_PAGES}-page cap.`,
+      `${count(coverage.templatesLeftOut, "template")} not sampled because of the ${MAX_SAMPLED_PAGES}-page cap.`,
     );
   if (coverage.notCaptured.length > 0)
     lines.push(
@@ -193,7 +179,7 @@ function fixFirstSection(input: ReportInput, criteria: Map<string, Criterion>): 
       ];
 
       if (coverage.kind === "sample" && criterion.scope === "page") {
-        const breakdown = templateBreakdown(subjects, coverage.sample, coverage.audited);
+        const breakdown = templateBreakdown(subjects, coverage);
         if (breakdown.length > 0)
           lines.push(
             "**Templates:**",
