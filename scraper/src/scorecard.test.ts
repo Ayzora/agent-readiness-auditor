@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { findingFrom, rulebookFrom } from "./utils.ts";
 import { loadRulebook } from "./rulebook.ts";
-import { scoreFindings } from "./scorecard.ts";
+import { scoreFindings, undefinedCriterionKey } from "./scorecard.ts";
 import type { Finding, Gate, Rulebook, Scorecard } from "./types.ts";
 
 // Round weights, so every expected value below is checkable by hand.
@@ -215,6 +215,14 @@ test("scoring does not modify the findings", () => {
 
 test("a finding whose key is not in the rulebook throws and names it", () => {
   assert.throws(() => scoreFindings([pass("render.typo")], rulebook), /render\.typo/);
+});
+
+test("undefinedCriterionKey names the first key the rulebook does not define, so a caller can refuse before scoring", () => {
+  assert.equal(
+    undefinedCriterionKey([pass("render.a"), fail("render.gone"), pass("render.old")], rulebook),
+    "render.gone",
+  );
+  assert.equal(undefinedCriterionKey([pass("render.a"), warn("provenance.a")], rulebook), null);
 });
 
 const fixFirstBook = rulebookFrom([

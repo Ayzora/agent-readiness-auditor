@@ -4,6 +4,8 @@ import {
   describeDimension,
   describeTotal,
   fallbackNotice,
+  localDate,
+  rulebookLabel,
   urlCount,
 } from "./print-report.ts";
 import { MAX_SAMPLED_PAGES, templateBreakdown } from "./site-sample.ts";
@@ -27,6 +29,8 @@ export interface ReportInput {
   coverage: ReportCoverage;
   // Set when the audit was saved; without it the date line is exactly as before.
   auditId?: number;
+  // The rulebook a rebuilt audit ran under; named only when it differs from today's.
+  auditRulesetVersion?: string;
 }
 
 // Pure, like the scorecard: no network, disk or clock, so the same input always
@@ -38,7 +42,7 @@ export function renderReport(input: ReportInput): string {
 
   return [
     `# Agent-readiness report — ${new URL(url).hostname}`,
-    `${localDate(date)} · rulebook ${rulebook.version}${input.auditId === undefined ? "" : ` · audit ${input.auditId}`}`,
+    `${localDate(date)} · ${rulebookLabel(rulebook.version, input.auditRulesetVersion)}${input.auditId === undefined ? "" : ` · audit ${input.auditId}`}`,
     "## Coverage",
     coverageSection(input.coverage, url),
     "## Headline",
@@ -289,11 +293,6 @@ function agentList(entry: unknown): Agent[] {
 
 function count(amount: number, noun: string): string {
   return `${amount.toLocaleString("en-US")} ${noun}${amount === 1 ? "" : "s"}`;
-}
-
-function localDate(date: Date): string {
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function capitalise(word: string): string {

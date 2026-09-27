@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { findingToRow, rowToFinding } from "./audit-rows.ts";
 import { bareHost } from "./site-sample.ts";
-import type { AuditInput, AuditStatus, Finding, ReportCoverage } from "./types.ts";
+import type { AuditInput, AuditRow, AuditStatus, Finding, ReportCoverage, SiteRow } from "./types.ts";
 
 // Every supabase-js call lives in this file, and nothing here throws: each step
 // returns its result or a reason, so index.ts needs no try/catch.
@@ -152,7 +152,6 @@ async function setAuditStatus(
 }
 
 
-const FINDING_PAGE_SIZE = 1000;
 async function readBack(
   auditId: number,
   supabase: SupabaseClient,
@@ -167,6 +166,73 @@ async function readBack(
 
   const { coverage }: { coverage: ReportCoverage } = audit;
 
+  const findings = await readFindings(auditId, supabase);
+  if ("reason" in findings) return findings;
+
+  return { findings, coverage };
+}
+
+export interface StoredAudit extends SavedAudit {
+  host: string;
+  typedUrl: string;
+  date: Date;
+  rulesetVersion: string;
+}
+
+// Only `done` means every finding was saved, so any other status is reported
+// rather than read, and a missing audit is told apart from a failed read.
+export type AuditRead =
+  | { kind: "done"; audit: StoredAudit }
+  | { kind: "incomplete"; status: AuditStatus }
+  | { kind: "missing" }
+  | { kind: "unread"; reason: string };
+
+// Reads one saved audit for `--audit`. Only selects: nothing here writes.
+export async function readAudit(auditId: number): Promise<AuditRead> {
+  try {
+    const supabase = connect();
+    if ("reason" in supabase) return { kind: "unread", reason: supabase.reason };
+
+    const { data, error } = await supabase
+      .from("audit")
+      .select("typed_url, created_at, ruleset_version, status, coverage, site(host)")
+      .eq("id", auditId)
+      .maybeSingle();
+
+    if (error) return { kind: "unread", reason: error.message };
+    if (!data) return { kind: "missing" };
+
+    const audit = data as unknown as Omit<AuditRow, "id" | "site_id"> & { site: Pick<SiteRow, "host"> };
+    if (audit.status !== "done") return { kind: "incomplete", status: audit.status };
+
+    const findings = await readFindings(auditId, supabase);
+    if ("reason" in findings) return { kind: "unread", reason: findings.reason };
+
+    return {
+      kind: "done",
+      audit: {
+        id: auditId,
+        host: audit.site.host,
+        typedUrl: audit.typed_url,
+        date: new Date(audit.created_at),
+        rulesetVersion: audit.ruleset_version,
+        findings,
+        coverage: audit.coverage,
+      },
+    };
+  } catch (error) {
+    return { kind: "unread", reason: (error as Error).message };
+  }
+}
+
+// Supabase returns at most 1,000 rows per request, so findings are read in
+// pages, ordered by id: the order they were collected in.
+const FINDING_PAGE_SIZE = 1000;
+
+async function readFindings(
+  auditId: number,
+  supabase: SupabaseClient,
+): Promise<Finding[] | { reason: string }> {
   const findings: Finding[] = [];
   let pageStart = 0;
 
@@ -183,7 +249,7 @@ async function readBack(
 
     findings.push(...rows.map(rowToFinding));
 
-    if (rows.length < FINDING_PAGE_SIZE) return { findings, coverage };
+    if (rows.length < FINDING_PAGE_SIZE) return findings;
     pageStart += FINDING_PAGE_SIZE;
   }
 }

@@ -2,7 +2,7 @@
 type: Work Item
 title: pnpm scraper --audit <id>
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -31,16 +31,16 @@ status: todo
 
 ## Acceptance criteria
 
-- [ ] For a `done` audit, `--audit <id>` prints the audit line, the Scorecard and Fix first, and saves a report. That report matches the original run's report in `~/Downloads` apart from the rulebook part, including evidence key order and the Coverage part.
-- [ ] The same holds for an audit with fallback coverage.
-- [ ] `--audit` makes no request to the audited site and writes nothing to Supabase.
-- [ ] With an audit's status set to `running` in the dashboard, `--audit` refuses it with the not-complete line and a non-zero exit.
-- [ ] A nonexistent id prints `No audit <id>.` and exits non-zero.
-- [ ] After bumping `criteria.yaml`'s `version` locally, the terminal and the report both show `(audit ran under …)`.
-- [ ] A saved finding whose key was removed from the rulebook prints the no-longer-defines line instead of a stack trace.
-- [ ] `--audit` with a URL, with no id, or with `abc` is a usage error, and `pnpm scraper <url>` works as before.
-- [ ] Running `--audit` twice for one audit writes two report files, and neither overwrites the other.
-- [ ] `pnpm lint` and `pnpm --filter scraper test` pass.
+- [x] For a `done` audit, `--audit <id>` prints the audit line, the Scorecard and Fix first, and saves a report. That report matches the original run's report in `~/Downloads` apart from the rulebook part, including evidence key order and the Coverage part.
+- [x] The same holds for an audit with fallback coverage.
+- [x] `--audit` makes no request to the audited site and writes nothing to Supabase.
+- [x] With an audit's status set to `running` in the dashboard, `--audit` refuses it with the not-complete line and a non-zero exit.
+- [x] A nonexistent id prints `No audit <id>.` and exits non-zero.
+- [x] After bumping `criteria.yaml`'s `version` locally, the terminal and the report both show `(audit ran under …)`.
+- [x] A saved finding whose key was removed from the rulebook prints the no-longer-defines line instead of a stack trace.
+- [x] `--audit` with a URL, with no id, or with `abc` is a usage error, and `pnpm scraper <url>` works as before.
+- [x] Running `--audit` twice for one audit writes two report files, and neither overwrites the other.
+- [x] `pnpm lint` and `pnpm --filter scraper test` pass.
 
 ## Covers
 

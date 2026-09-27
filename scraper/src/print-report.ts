@@ -30,6 +30,20 @@ const NO_SITEMAP_CAUSE: Record<NoUsableSitemap, string> = {
   "no eligible URLs": "Sitemap lists no auditable URLs",
 };
 
+// Shared with the report, so the terminal and the report date an audit alike.
+export function localDate(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// A rebuilt audit is scored under today's rulebook, so the one it ran under is
+// named whenever the two differ. Shared with the report's date line.
+export function rulebookLabel(version: string, auditRulesetVersion?: string): string {
+  return auditRulesetVersion === undefined || auditRulesetVersion === version
+    ? `rulebook ${version}`
+    : `rulebook ${version} (audit ran under ${auditRulesetVersion})`;
+}
+
 // Shared with the report, which must repeat the notice word for word.
 export function fallbackNotice(reason: NoUsableSitemap, url: string): string {
   return `${NO_SITEMAP_CAUSE[reason]} — auditing only ${url}. Results cover one page, not the site.`;

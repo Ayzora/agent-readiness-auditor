@@ -14,34 +14,44 @@ import {
   printFindings,
   printPages,
   printScorecard,
+  localDate,
+  rulebookLabel,
 } from "./print-report.ts";
 import { runSectionCAudit } from "./section-c/index.ts";
 import { runSectionDAudit } from "./section-d/index.ts";
 import { runSectionFAudit } from "./section-f/index.ts";
 import { runSectionGAudit } from "./section-g/index.ts";
 import { captureDocuments } from "./document-probe.ts";
-import { scoreFindings } from "./scorecard.ts";
+import { scoreFindings, undefinedCriterionKey } from "./scorecard.ts";
 import { renderReport } from "./report.ts";
-import { storeAudit } from "./audit-store.ts";
+import { readAudit, storeAudit } from "./audit-store.ts";
+import { parseArguments } from "./arguments.ts";
 import type { Finding, ReportCoverage } from "./types.ts";
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const url = process.argv.slice(2).filter((arg) => !arg.startsWith("--"))[0];
+const USAGE = "Usage: pnpm scraper <url>, or pnpm scraper --audit <id>";
 
-if (!url) {
-  console.error("Usage: pnpm scraper <url>");
+const command = parseArguments(process.argv.slice(2));
+
+if (command.kind === "usage") {
+  console.error(`${USAGE} — ${command.problem}.`);
   process.exit(1);
 }
+
+const rulebook = loadRulebook();
+
+// Rebuilding contacts no website, so it branches off before any fetch.
+if (command.kind === "rebuild") process.exit(await rebuildAudit(command.auditId));
+
+const { url } = command;
 
 // Every site-scope fetch builds on the URL, so a malformed one must stop here.
 if (!URL.canParse(url) || !["http:", "https:"].includes(new URL(url).protocol)) {
   console.error(`Not a URL: ${url}. Usage: pnpm scraper <url>, including https://`);
   process.exit(1);
 }
-
-const rulebook = loadRulebook();
 
 // Before any page, because the sitemap chooses the pages.
 const siteFiles = await captureSiteFiles(url);
@@ -144,22 +154,81 @@ const scorecard = scoreFindings(audit.findings, rulebook);
 
 printScorecard(scorecard, rulebook, audit.coverage);
 
-await saveReport(date);
-
-// Never inside the repository, never over an earlier report, and never fatal:
-// the audit is already on screen, so a failed save costs only the file.
-async function saveReport(now: Date): Promise<void> {
-  const folder = join(homedir(), "Downloads");
-  const path = join(folder, `${new URL(url).hostname}-${timestamp(now)}.md`);
-  const markdown = renderReport({
+await saveReport(
+  renderReport({
     url,
-    date: now,
+    date,
     findings: audit.findings,
     scorecard,
     rulebook,
     coverage: audit.coverage,
     auditId: audit.id,
-  });
+  }),
+  new URL(url).hostname,
+  date,
+);
+
+// `--audit <id>`: the saved audit's Scorecard and report under today's
+// rulebook, from Supabase alone. Statuses are used as saved, never re-judged.
+// Returns the exit code.
+async function rebuildAudit(auditId: number): Promise<number> {
+  const read = await readAudit(auditId);
+
+  if (read.kind !== "done") {
+    console.error(
+      read.kind === "missing"
+        ? `No audit ${auditId}.`
+        : read.kind === "incomplete"
+          ? `Audit ${auditId} is ${read.status} — its findings are incomplete, so no scorecard.`
+          : `Could not read audit ${auditId} — ${read.reason}.`,
+    );
+    return 1;
+  }
+
+  const { audit } = read;
+
+  // Checked here because scoreFindings would throw on it.
+  const undefinedKey = undefinedCriterionKey(audit.findings, rulebook);
+  if (undefinedKey !== null) {
+    console.error(
+      `Audit ${auditId} has findings for ${undefinedKey}, which criteria.yaml no longer defines.`,
+    );
+    return 1;
+  }
+
+  console.log(
+    `Audit ${auditId} · ${audit.host} · ${localDate(audit.date)} · ${rulebookLabel(rulebook.version, audit.rulesetVersion)}`,
+  );
+
+  const scorecard = scoreFindings(audit.findings, rulebook);
+
+  printScorecard(scorecard, rulebook, audit.coverage);
+
+  // The header keeps the audit's own date; the filename takes the current
+  // time, so rebuilding one audit twice never collides.
+  await saveReport(
+    renderReport({
+      url: audit.typedUrl,
+      date: audit.date,
+      findings: audit.findings,
+      scorecard,
+      rulebook,
+      coverage: audit.coverage,
+      auditId,
+      auditRulesetVersion: audit.rulesetVersion,
+    }),
+    audit.host,
+    new Date(),
+  );
+
+  return 0;
+}
+
+// Never inside the repository, never over an earlier report, and never fatal:
+// the audit is already on screen, so a failed save costs only the file.
+async function saveReport(markdown: string, host: string, now: Date): Promise<void> {
+  const folder = join(homedir(), "Downloads");
+  const path = join(folder, `${host}-${timestamp(now)}.md`);
 
   try {
     // "wx" fails on an existing file, and writeFile never creates the folder.

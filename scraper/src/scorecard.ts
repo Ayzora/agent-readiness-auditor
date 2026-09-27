@@ -45,6 +45,13 @@ export function scoreFindings(findings: Finding[], rulebook: Rulebook): Scorecar
   };
 }
 
+// The first key the rulebook does not define, or null. A saved audit can
+// outlive a criterion, so `--audit` asks this before scoreFindings would throw.
+export function undefinedCriterionKey(findings: Finding[], rulebook: Rulebook): string | null {
+  const keys = new Set(rulebook.criteria.map((criterion) => criterion.key));
+  return findings.find((finding) => !keys.has(finding.criterionKey))?.criterionKey ?? null;
+}
+
 function scoreFinding(finding: Finding, criteria: Map<string, Criterion>, rulebook: Rulebook): Scored {
   const criterion = criteria.get(finding.criterionKey);
   if (!criterion) throw new Error(`criteria.yaml has no criterion ${finding.criterionKey}`);

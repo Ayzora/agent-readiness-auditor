@@ -130,6 +130,27 @@ test("renderReport: the title carries the date and the rulebook version", () => 
   assert.ok(markdown.includes("rulebook test"));
 });
 
+test("renderReport: a rebuilt audit's date line names the rulebook it ran under when that differs", () => {
+  const input = {
+    url: TYPED,
+    date: DATE,
+    findings: healthyAccess(),
+    scorecard: scoreFindings(healthyAccess(), rulebook),
+    rulebook,
+    coverage: FALLBACK,
+    auditId: 42,
+  };
+
+  assert.equal(
+    lineStarting(renderReport({ ...input, auditRulesetVersion: "v0.0.9" }), "2026-09-24"),
+    "2026-09-24 · rulebook test (audit ran under v0.0.9) · audit 42",
+  );
+  assert.equal(
+    lineStarting(renderReport({ ...input, auditRulesetVersion: "test" }), "2026-09-24"),
+    "2026-09-24 · rulebook test · audit 42",
+  );
+});
+
 test("renderReport: a fallback run's Coverage is the notice alone", () => {
   const coverage = section(report(healthyAccess()), "Coverage");
 
