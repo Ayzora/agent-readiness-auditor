@@ -7,11 +7,12 @@ from the same stored rows.
 Steps 5–11 are built, in memory: `scoreFindings(findings, rulebook)` in
 `scraper/src/scorecard.ts` is pure and synchronous, and `pnpm scraper` prints
 its result as a **Scorecard** and a **Fix first** list after every section
-block (Spec 0006). There is no database, so step 3's insert, step 4's read-back
-and step 12's diff are not built — an in-memory array is stored rows for the
-purposes of everything after the wall. This document was written as the agreed
-shape before any of it existed; where a step says otherwise from what was
-built, the step has been updated.
+block (Spec 0006). Steps 3 and 4 are built too (Spec 0010): every run saves
+its findings to Supabase, reads them back, and scores the copy it read, and
+`pnpm scraper --audit <id>` rescores a saved audit without contacting the site.
+Step 12's diff is not built. This document was written as the agreed shape
+before any of it existed; where a step says otherwise from what was built, the
+step has been updated.
 
 Vocabulary follows `GLOSSARY.md` — check, finding, evidence, rulebook,
 dimension, gate. The governing rule is the spec's:
@@ -69,6 +70,19 @@ inserted **as is**, tagged with an `audit_id`. No score, no weight, no title.
 Finding rows are immutable. They are written once and read forever. Scores are
 never written back onto them — see step 6.
 
+**As built**, every supabase-js call lives in `scraper/src/audit-store.ts`,
+which never throws. Nothing is written until every section has run; then, in
+order: find or create the `site` row by host, insert the `audit` row with
+`status = 'running'`, insert the findings in batches of 500 in the order they
+were collected, and set the audit to `done`. `evidence` is a `json` column, not
+`jsonb`, so its keys come back in the order they were written.
+
+There is no transaction — supabase-js cannot hold one open — so `status` does
+its job instead: only `done` means every finding was saved. A failed step marks
+the audit `failed`, and an interrupted run leaves it `running`. Either way the
+run prints `Audit not saved — <reason>.` and carries on from the findings in
+memory, and the exit code is unchanged.
+
 After the crawl, audit 42 holds nine rows:
 
 | criterion_key | url | status | evidence |
@@ -89,6 +103,18 @@ After the crawl, audit 42 holds nine rows:
 
 The crawl is over. From here the input is stored rows and nothing else, which
 is what makes every following step replayable.
+
+**As built**, the rows are read back ordered by `id`, which is collection
+order, in pages of 1,000 with `.range()` because Supabase returns no more than
+that per request. When the count read back differs from the count inserted,
+the save counts as failed. Otherwise the Scorecard and report are built from
+the copy read back, so every run proves the saved audit is complete.
+
+`pnpm scraper --audit <id>` starts here: it reads a `done` audit's rows and
+coverage, and nothing before this step runs. It refuses an audit that is not
+`done`, and one holding a key the rulebook no longer defines. Each finding's
+`status` is used as saved, so it rescores under today's weights but never
+re-judges under today's thresholds.
 
 ## Step 5 — look up
 
@@ -144,16 +170,18 @@ measurement against its thresholds.
 
 **Nothing is written back.** `weight`, `earned` and `available` are not
 columns and never will be; they are local variables in the scoring loop,
-garbage-collected when it ends. Only the totals persist, to a different table:
+garbage-collected when it ends. The totals are not stored either:
 
 | table | holds | mutable |
 | --- | --- | --- |
 | `finding` | what was observed | no — written once, read forever |
-| `audit` | what was concluded | yes — recomputed whenever the rulebook changes |
+| `audit` | when, what was typed, the rulebook version, the coverage and `status` | only `status` |
 
 Writing scores onto finding rows would mean rewriting history on every weight
-change, and would lose the original observation. Immutable findings are what
-make steps 4–12 replayable.
+change, and would lose the original observation. Storing them on the audit row
+would leave a number that goes stale the moment the rulebook changes. Immutable
+findings, and scores recomputed on every read, are what make steps 4–12
+replayable.
 
 ## Step 7 — aggregate
 
@@ -294,6 +322,9 @@ blocks above it already print every finding's evidence. The Markdown report
 
 ## Step 12 — diff
 
+**Not built.** It waits for its own Spec, which can match findings across two
+`done` audits of one site.
+
 Match rows from two audits on **`criterion_key` + `url`** — the pair
 identifying the same question about the same page across time.
 
@@ -311,8 +342,10 @@ A one-off score is a curiosity; "you fixed 14 things and broke 3" is a reason
 to keep paying. It works only because step 3 stored the raw observation rather
 than a computed number — the diff compares findings, not scores.
 
-`audit.ruleset_version` pins each run to the rulebook as it stood that day, so
-a weight change in November does not retroactively invalidate an August score.
+`audit.ruleset_version` records the rulebook each audit ran under. A rescore
+uses today's rulebook, and `--audit` names the old version beside the new one —
+`rulebook v0.2.0 (audit ran under v0.1.0)` — so a changed score is never
+mistaken for a changed site.
 
 ## Rulebook shape
 
@@ -490,7 +523,8 @@ readable.
 
 **Key validation — open.** The scorer throws, naming the key, on a finding whose
 `criterionKey` the rulebook does not define — so a typo fails the run rather
-than dropping out of the score. Nothing checks it at load time, and nothing
+than dropping out of the score. `--audit` checks a saved audit's keys first,
+with `undefinedCriterionKey`, and refuses with one line instead. Nothing checks it at load time, and nothing
 catches a rulebook entry no check emits. A load-time assertion in both
 directions is still cheap.
 

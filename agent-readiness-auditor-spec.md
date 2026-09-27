@@ -343,6 +343,8 @@ Per-archetype, not per-site. Write the SaaS pack once and it runs against every 
 
 ### 7.3 Tables
 
+As built in `supabase/migrations/0001_audits.sql`: Supabase (hosted Postgres), reached through supabase-js. There is no direct Postgres connection and no transaction, so a half-saved audit is made visible by `audit.status` instead (Spec 0010).
+
 site  →  audit  →  finding
 
                 →  task\_run   (Phase 2\)
@@ -351,33 +353,25 @@ site
 
   id
 
-  url                 \-- normalised, unique
+  host                \-- lower-case, leading www. removed, unique
 
-  archetype           \-- 'saas'|'ecommerce'|'docs'|'publisher'|null
-
-  created\_at
+  created\_at          \-- the site's first audit, never overwritten
 
 audit
 
-  id
+  id                  \-- the number typed after --audit
 
   site\_id             \-- → site.id
 
-  ruleset\_version     \-- git tag, stamped at start, e.g. 'v0.3.0'
+  typed\_url           \-- exactly as typed
 
-  status              \-- 'running'|'done'|'failed'
+  created\_at          \-- the run's date, sent by the scraper; also the report's date
 
-  total\_score
+  ruleset\_version     \-- criteria.yaml's version, stamped at the run, e.g. 'v0.1.0'
 
-  gate\_applied        \-- which gate capped the score, null if none
+  status              \-- 'running'|'done'|'failed'; only 'done' is complete
 
-  dimension\_scores    \-- jsonb: {"access":80,"render":45,...}
-
-  pages\_crawled
-
-  report\_md
-
-  created\_at
+  coverage            \-- json: the sample — each template's size, the pages, or the fallback reason
 
 finding
 
@@ -387,11 +381,17 @@ finding
 
   criterion\_key       \-- 'render.text\_coverage' — points into criteria.yaml
 
-  url                 \-- null for site-level checks
+  url                 \-- not null: the page, the site root, or the document
 
   status              \-- 'pass'|'fail'|'warn'|'skip'
 
-  evidence            \-- jsonb: selector, snippet, ratios, status codes
+  evidence            \-- json: selector, snippet, ratios, status codes
+
+`evidence` and `coverage` are `json`, not `jsonb`: the report prints evidence in key order, and `jsonb` re-sorts keys. The cost is no index inside evidence, which nothing needs yet.
+
+Nothing computed is stored. There is no total score, gate, dimension score, page count or report column: each is recomputed from the findings whenever it is read, so a rulebook change never leaves a stale number behind. `site.archetype` waits for the Phase 2 task packs that would read it.
+
+Row Level Security is on for all three tables with no policies, so the publishable key can read and write nothing. Only the scraper's secret key reaches them.
 
 **Phase 2 only:**
 
@@ -421,18 +421,18 @@ task\_run
 
 | Table | Purpose |
 | :---- | :---- |
-| `site` | The domain being audited. One row, permanent. `archetype` selects the task pack. |
-| `audit` | One run. Every summary number plus the rendered report. The row you diff against last time. `ruleset_version` pins it to the rulebook as it existed that day, so a weight change in November doesn't retroactively invalidate an August score. |
+| `site` | The site being audited, identified by its host. One row, permanent. |
+| `audit` | One audit: what was typed, when, under which rulebook, what was sampled, and whether every finding was saved. The row you diff against last time. `ruleset_version` records the rulebook as it existed that day, so a rescore under a later rulebook can say which one the findings were judged under. |
 | `finding` | One check, one page, one outcome. \~1,200 rows per audit. Three jobs: every report line comes from here, the re-run diff is a join on it, and `evidence` makes findings arguable-with-facts. |
 | `task_run` | Did an agent complete the job. One row per task × model × attempt. Separate from `finding` because cardinality differs (6 rows per key vs. 1), it has real numeric columns to aggregate, and its status is an enum not pass/fail. |
 
 ### 7.4 Indexes
 
-create index on finding (audit\_id, criterion\_key);
-
-create index on finding (audit\_id, status);
+create index on finding (audit\_id, id);
 
 create index on audit (site\_id, created\_at desc);
+
+The first serves reading an audit's findings back in the order they were collected. Indexes on `finding (audit_id, criterion_key)` and `(audit_id, status)` wait for the diff and the web app, the queries that would use them.
 
 ### 7.5 What deliberately isn't a table
 
@@ -442,9 +442,9 @@ create index on audit (site\_id, created\_at desc);
 | `task_def` | `tasks/*.yaml` | Same. |
 | `crawl` | folded into `audit` | At MVP, one crawl \= one audit, always. |
 | `page` | `finding.url` \+ evidence | Per-page metrics are findings with a number in evidence. |
-| `dimension_score` | `audit.dimension_scores` | Seven values read together, never queried across. |
+| `dimension_score` | recomputed from `finding` | A reading of the findings under the rulebook, never a record. |
 | `task_step` | `task_run.trace` | Only read for one run at a time, to render it. |
-| `report` | `audit.report_md` | Regenerating prose is an UPDATE. |
+| `report` | rendered from `finding` | Regenerated on demand by `pnpm scraper --audit <id>`, never stored. |
 
 ---
 
@@ -467,6 +467,8 @@ create index on audit (site\_id, created\_at desc);
 **8\. Close audit** — update with score, gate, dimension scores, report.
 
 **9\. Render report** — group failing findings by criterion, join each to its YAML entry for title/why/fix, sort by ROI.
+
+**As built (Spec 0010):** nothing is written until every check has run. Steps 1, 2 and 6 then happen together — find or create the site by host, insert the audit as `running`, insert the findings in batches of 500 — and step 8 only sets `status` to `done`, because no score, gate or report is stored. Step 7 reads the findings back and scores that copy, so every run proves the saved audit is complete. There is no archetype to classify yet.
 
 ### Rate-limit probe — safety constraints
 
@@ -561,7 +563,7 @@ Leaning (a). Real fork — decide deliberately.
 | :---- | :---- | :---- |
 | 1 | Single hardcoded site, no UI, no DB. Fetch phase \+ 5 checks. Print findings to terminal. | **7 days** |
 | 2 | `criteria.yaml` with \~20 criteria \+ check functions. Still terminal output. | \+5 days |
-| 3 | Postgres, 3 tables, scoring, gates. | \+4 days |
+| 3 | Postgres (Supabase, through supabase-js), 3 tables, scoring, gates. | \+4 days |
 | 4 | Crawl \+ template clustering \+ sampling. | \+5 days |
 | 5 | Markdown report generation, ROI sorting. | \+3 days |
 | 6 | Web form \+ job queue \+ report page. | \+5 days |

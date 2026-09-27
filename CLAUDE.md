@@ -21,12 +21,15 @@ inside a linked file?") and Section G (Provenance — "has the site published
 anything *for* agents?") implemented. The CLI takes one URL and audits a
 sample of that site's pages, chosen from its sitemap (see *The sitemap
 sample* below); with no usable sitemap it audits the typed URL alone. Pages
-come from the sitemap only — nothing follows links from page to page — and
-there is no database. Beside it sits a `web` package that is still an
+come from the sitemap only — nothing follows links from page to page. Every
+run saves its **audit** — the site, the coverage and every finding — to
+Supabase and scores the copy it reads back, and `pnpm scraper --audit <id>`
+rebuilds a saved audit without contacting the site (see *The audit store*
+below). Beside it sits a `web` package that is still an
 unmodified `create-next-app` scaffold (plus one sample route proving routing
 works). The rulebook, `scraper/criteria.yaml`, holds every criterion's
 weight, report text, thresholds and Section D's required-property table, and
-`scraper/src/scorecard.ts` scores one run's findings against it in memory.
+`scraper/src/scorecard.ts` scores one audit's findings against it.
 `docs/scoring-pipeline.md` records how, and which of its steps are built.
 
 ### Thresholds come from the rulebook
@@ -365,9 +368,8 @@ never throws and `robots_allows_agents` always returns `pass`, `warn` or
 `fail` — so the withheld-total path has no trigger in a normal run and stays
 only as a guard.
 
-Deliberately not built: persistence, reading back and diffing
-(`docs/scoring-pipeline.md` steps 4 and 12), and the sitewide text-coverage
-gate, which waits for its own Spec.
+Deliberately not built: diffing (`docs/scoring-pipeline.md` step 12), and the
+sitewide text-coverage gate, which waits for its own Spec.
 
 ### The sitemap sample
 
@@ -419,14 +421,18 @@ document showing that scorecard to the person who has to fix the site — to
 - `scraper/src/report.ts` exports the pure `renderReport(input): string`, over
   the findings, the scorecard, the rulebook, the run's date and the sample (or
   fallback reason). No network, disk or clock, so the same input renders the
-  same text — and a database era can call it on findings read back.
+  same text — whether its findings come from memory or were read back by
+  `--audit`.
 - Its parts, in order: Coverage, Headline, Access reality check, Fix first
   (with every affected subject's evidence in full), Observations (unscored
   criteria) and Not checked (every scored skip). Every sentence comes from the
   rulebook; the report writes no prose of its own, and reuses the terminal's
   wording through helpers exported from `print-report.ts`.
 - The access table is rebuilt from the `access.*` findings' evidence, never the
-  capture, for the same database-era reason.
+  capture, for the same reason: `--audit` has no capture to read.
+- A saved audit's date line ends with ` · audit <id>`; an unsaved run's line is
+  unchanged. A rebuilt audit whose rulebook version differs from today's reads
+  `rulebook v0.2.0 (audit ran under v0.1.0)`, in the terminal too.
 - Text from the audited site goes in code spans and table cells escape `|`, so
   a site cannot break the Markdown.
 - `index.ts` saves it last: never inside the repository, never over an existing
@@ -435,6 +441,56 @@ document showing that scorecard to the person who has to fix the site — to
 
 Deliberately not built: storing the report in the database, the Ignore list
 (the rulebook has no content for it) and per-criterion evidence sentences.
+
+### The audit store
+
+Every `pnpm scraper <url>` run that produces findings saves one **audit** to
+Supabase, with no flag. Recorded in `specs/0010-supabase-audit-store/spec.md`;
+the tables are `supabase/migrations/0001_audits.sql`, applied once by pasting
+it into the Supabase SQL editor.
+
+- **Every supabase-js call lives in `scraper/src/audit-store.ts`**, a root
+  module outside every section folder because it reads every dimension's
+  findings. It exports `storeAudit` and `readAudit`, and like every Phase 1
+  module it **never throws**: each returns rows or a reason, so `index.ts`
+  needs no `try`/`catch`. The pure `Finding` ↔ row conversion sits beside it
+  in `audit-rows.ts`, with no Supabase import.
+- **The save sits after every section and before `scoreFindings`**: find or
+  create the `site` row by `bareHost` (lower-case, `www.` removed), insert the
+  `audit` as `running`, insert findings in batches of 500 in collection order,
+  set it `done`, then read the findings back by `id`, paging past Supabase's
+  1,000-row limit with `.range()`. The Scorecard and report are built from the
+  copy read back, which proves on every run that the saved copy is complete.
+- **Only `done` is complete.** supabase-js holds no transaction, so `status`
+  replaces one: a failed step or a count mismatch marks the audit `failed`,
+  and Ctrl-C leaves it `running`, which nothing cleans up. Any failure prints
+  `Audit not saved — <reason>.` and the run carries on from memory with the
+  same exit code. A reason is built from the error, never the settings, so the
+  secret key is never printed.
+- **`json`, not `jsonb`**, for `finding.evidence` and `audit.coverage`: the
+  report prints evidence in key order, and `jsonb` re-sorts keys.
+- **Nothing computed is stored** — no score, gate or report. `coverage` stores
+  each template's size, not its URL list, which is why every printer reads the
+  one `ReportCoverage` shape.
+- **RLS is on for all three tables, with no policies**, so the publishable key
+  can read and write nothing. Only the secret key in `scraper/.env` reaches them.
+- **`--audit <id>` only reads.** It branches off in `index.ts` before any
+  fetch, contacts no website and writes nothing to Supabase. It scores the
+  saved statuses under today's rulebook without re-judging them, so a
+  threshold change still needs a fresh audit. It stops with one line and a
+  non-zero exit for a missing audit, one that is not `done`, missing settings,
+  a failed read, or a key `criteria.yaml` no longer defines — checked with
+  `undefinedCriterionKey` before `scoreFindings` could throw. Its report keeps
+  the audit's own date and takes the current time in its filename, so two
+  rebuilds never collide. `parseArguments` in `arguments.ts` makes sure the
+  `42` in `--audit 42` is never read as a URL.
+
+Deliberately not built: the diff, a "list audits" command, the web app and any
+RLS policy for it, saving page snapshots, cleaning up audits stuck in
+`running`, `site.archetype` and `task_run`, a direct Postgres connection, and
+loading an older rulebook to rescore under. No automated test touches
+Supabase — there is no fake client and no local Supabase — so the store is
+verified by hand against the real project.
 
 ## Prerequisites
 
@@ -453,16 +509,18 @@ Run from the repository root unless noted.
 | `pnpm dev` | Next.js dev server on http://localhost:3000 |
 | `pnpm build` | Builds every workspace package |
 | `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
-| `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, then prints the scorecard and the Fix first list and saves the report to `~/Downloads` |
+| `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, saves the audit to Supabase, then prints the scorecard and the Fix first list and saves the report to `~/Downloads` |
+| `pnpm scraper --audit <id>` | Rebuilds saved audit `<id>`'s scorecard, Fix first list and report from Supabase alone, under today's `criteria.yaml`, without contacting the site |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
 | `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
 cover Sections A, C, D, F and G, Section F's link discovery, the sitemap
-sample, the scorecard, the report, the rulebook loader and the unreachable
-test; Section B is a follow-up. Section A's Phase 1 fetches, the robots.txt and
-sitemap download, the page-capture loop and saving the report are verified by
-hand, not unit-tested.
+sample and its host normalising, the scorecard, the report, the rulebook
+loader, the command-line arguments and the unreachable test; Section B is a
+follow-up. Section A's Phase 1 fetches, the robots.txt and sitemap download,
+the page-capture loop, saving the report and every Supabase call are verified
+by hand, not unit-tested.
 
 - `snapshotFrom(rawHtml, overrides)` in `scraper/src/utils.ts` builds the
   `PageSnapshot` a pure check reads, so a test needs no network and no
@@ -502,8 +560,13 @@ cp scraper/.env.example scraper/.env
 
 - Next.js reads `web/.env` automatically; it will not look further up the
   tree.
-- Node does **not** load `scraper/.env` on its own. If the scraper needs a
-  real env var, its `start` script needs `--env-file-if-exists=.env` added.
+- Node does **not** load `scraper/.env` on its own, so the scraper's `start`
+  script passes `--env-file-if-exists=.env`. A missing file is not an error.
+- `scraper/.env` holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` — a
+  `sb_secret_…` secret key or a legacy `service_role` key, never the
+  publishable key, which RLS shuts out. Without both, a run prints
+  `Audit not saved — no Supabase settings in scraper/.env.` (or names the one
+  missing) and otherwise behaves as if there were no database.
 - Keep each `.env.example` updated in the same commit as the variable that
   needs it — nothing enforces this.
 
@@ -554,17 +617,18 @@ Phase 1 module here degrades rather than throws: fields go null, an `error`
 string is populated, and the checks reading them return `skip`. One dead page
 must not abort an audit, and at 40 pages it must not.
 
-### Planned data model (not yet implemented)
+### Data model
 
-From the spec, worth knowing before adding persistence:
+From the spec:
 
 > YAML holds the questions. The database holds the answers.
 
 Scoring rules, weights, and remediation text live in a versioned
-`criteria.yaml` (git-tracked, identical across every audited site). Per-run
-results (`site` → `audit` → `finding`, plus `task_run` in Phase 2) live in the
-database and are never versioned — they're an event log. `finding.criterion_key`
-is a foreign key into the YAML file, not a DB table.
+`criteria.yaml` (git-tracked, identical across every audited site). Each
+audit's answers (`site` → `audit` → `finding`) live in Supabase and are never
+versioned — they're an event log; the spec's `task_run` is Phase 2 and not
+built. `finding.criterion_key` is a foreign key into the YAML file, not a DB
+table. See *The audit store* above.
 
 ### Rate-limit probe safety constraints
 

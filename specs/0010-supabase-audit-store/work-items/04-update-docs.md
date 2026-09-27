@@ -2,7 +2,7 @@
 type: Work Item
 title: Update the docs to match the audit store
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -31,10 +31,10 @@ Bring the project's documents in line with what Work Items 01–03 built.
 
 ## Acceptance criteria
 
-- [ ] No document says the project has no database, or names `jsonb` or a direct Postgres connection as the current design.
-- [ ] `CLAUDE.md`'s Commands table lists `pnpm scraper --audit <id>`, and its Environment files section names both Supabase settings.
-- [ ] `docs/scoring-pipeline.md` marks steps 3 and 4 as built and step 12 as not built.
-- [ ] Spec §7's table sketch matches `supabase/migrations/0001_audits.sql`.
+- [x] No document says the project has no database, or names `jsonb` or a direct Postgres connection as the current design.
+- [x] `CLAUDE.md`'s Commands table lists `pnpm scraper --audit <id>`, and its Environment files section names both Supabase settings.
+- [x] `docs/scoring-pipeline.md` marks steps 3 and 4 as built and step 12 as not built.
+- [x] Spec §7's table sketch matches `supabase/migrations/0001_audits.sql`.
 
 ## Covers
 
