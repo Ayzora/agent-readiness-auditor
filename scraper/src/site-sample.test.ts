@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { SiteSample, SitemapCapture, SitemapSampling } from "./types.ts";
-import { sampleCoverage, sampleSite, templateBreakdown } from "./site-sample.ts";
+import { bareHost, sampleCoverage, sampleSite, templateBreakdown } from "./site-sample.ts";
 
 const SITE = "https://test.invalid";
 
@@ -288,4 +288,13 @@ test("templateBreakdown: one line per template holding an affected page", () => 
     { label: "/products/*", affected: 2, audited: 4, size: 60 },
     { label: "/pricing", affected: 1, audited: 1, size: 1 },
   ]);
+});
+
+test("bareHost: www. and letter case never make a second site, a subdomain does", () => {
+  const hosts = ["https://www.example.com", "https://WWW.Example.com", "https://example.com"].map(
+    (url) => bareHost(new URL(url)),
+  );
+
+  assert.deepEqual(hosts, ["example.com", "example.com", "example.com"]);
+  assert.equal(bareHost(new URL("https://shop.example.com")), "shop.example.com");
 });

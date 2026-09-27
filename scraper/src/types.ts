@@ -335,12 +335,46 @@ export interface DocumentProbe {
   documents: DocumentCapture[];
 }
 
-
 export interface LlmsTxtCapture {
-  url: string, 
-  statusCode: number | null, 
-  contentType: string | null, 
-  body: string | null, 
-  bytes: number | null, 
-  error: string | null
- }
+  url: string;
+  statusCode: number | null;
+  contentType: string | null;
+  body: string | null;
+  bytes: number | null;
+  error: string | null;
+}
+
+export interface SiteRow {
+  id: number;
+  host: string;
+  created_at: string;
+}
+
+export type AuditStatus = "running" | "done" | "failed";
+
+export interface AuditRow {
+  id: number;
+  site_id: number;
+  typed_url: string;
+  created_at: string;
+  ruleset_version: string;
+  status: AuditStatus;
+  coverage: ReportCoverage;
+}
+
+export interface AuditInput {
+  siteId: number;
+  typedUrl: string;
+  date: Date;
+  rulesetVersion: string;
+  coverage: ReportCoverage;
+}
+
+// A `finding` row as inserted: a Finding under its column names, and nothing added.
+export interface FindingRow {
+  audit_id: number;
+  criterion_key: string;
+  url: string;
+  status: FindingStatus;
+  evidence: Record<string, unknown>;
+}

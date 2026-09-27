@@ -2,7 +2,7 @@
 type: Work Item
 title: Save every audit to Supabase and read it back
 parent: ../spec.md
-status: todo
+status: done
 ---
 
 ## What to build
@@ -31,17 +31,17 @@ Every `pnpm scraper <url>` run saves its audit to Supabase through `@supabase/su
 
 ## Acceptance criteria
 
-- [ ] `0001_audits.sql` applies cleanly in the Supabase SQL editor and creates the three tables with RLS on and no policies.
-- [ ] A run on a site with a sitemap prints `Audit <id> saved.`. Its `audit` row is `done`, its coverage stores template sizes and no URL lists, and its finding count equals the run's.
-- [ ] The report of a saved run shows ` · audit <id>` on its date line. The report of an unsaved run is unchanged from today.
-- [ ] A fallback-coverage run (no usable sitemap) saves `{ "kind": "fallback", "reason": … }`.
-- [ ] Auditing `https://www.<host>` and then `https://<host>` leaves one `site` row.
-- [ ] With neither setting, the run prints the no-settings line, and its exit code and report are unchanged. With one setting, the line names the missing one.
-- [ ] With a wrong secret key, the run prints `Audit not saved — <reason>.`, and the key appears nowhere in the output.
-- [ ] Reading any of the three tables through the API with the publishable key returns nothing.
-- [ ] A 40-page audit with over 1,000 findings reads back the same count it inserted.
-- [ ] An automated test shows `www.example.com`, `WWW.Example.com` and `example.com` give one host, and `shop.example.com` a different one.
-- [ ] No automated test touches Supabase. `pnpm lint` and `pnpm --filter scraper test` pass.
+- [x] `0001_audits.sql` applies cleanly in the Supabase SQL editor and creates the three tables with RLS on and no policies.
+- [x] A run on a site with a sitemap prints `Audit <id> saved.`. Its `audit` row is `done`, its coverage stores template sizes and no URL lists, and its finding count equals the run's.
+- [x] The report of a saved run shows ` · audit <id>` on its date line. The report of an unsaved run is unchanged from today.
+- [x] A fallback-coverage run (no usable sitemap) saves `{ "kind": "fallback", "reason": … }`.
+- [x] Auditing `https://www.<host>` and then `https://<host>` leaves one `site` row.
+- [x] With neither setting, the run prints the no-settings line, and its exit code and report are unchanged. With one setting, the line names the missing one.
+- [x] With a wrong secret key, the run prints `Audit not saved — <reason>.`, and the key appears nowhere in the output.
+- [x] Reading any of the three tables through the API with the publishable key returns nothing.
+- [x] A 40-page audit with over 1,000 findings reads back the same count it inserted.
+- [x] An automated test shows `www.example.com`, `WWW.Example.com` and `example.com` give one host, and `shop.example.com` a different one.
+- [x] No automated test touches Supabase. `pnpm lint` and `pnpm --filter scraper test` pass.
 
 ## Covers
 

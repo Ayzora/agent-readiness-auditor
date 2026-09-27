@@ -25,6 +25,8 @@ export interface ReportInput {
   scorecard: Scorecard;
   rulebook: Rulebook;
   coverage: ReportCoverage;
+  // Set when the audit was saved; without it the date line is exactly as before.
+  auditId?: number;
 }
 
 // Pure, like the scorecard: no network, disk or clock, so the same input always
@@ -36,7 +38,7 @@ export function renderReport(input: ReportInput): string {
 
   return [
     `# Agent-readiness report — ${new URL(url).hostname}`,
-    `${localDate(date)} · rulebook ${rulebook.version}`,
+    `${localDate(date)} · rulebook ${rulebook.version}${input.auditId === undefined ? "" : ` · audit ${input.auditId}`}`,
     "## Coverage",
     coverageSection(input.coverage, url),
     "## Headline",

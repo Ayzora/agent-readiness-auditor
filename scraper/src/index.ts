@@ -22,6 +22,7 @@ import { runSectionGAudit } from "./section-g/index.ts";
 import { captureDocuments } from "./document-probe.ts";
 import { scoreFindings } from "./scorecard.ts";
 import { renderReport } from "./report.ts";
+import { storeAudit } from "./audit-store.ts";
 import type { Finding, ReportCoverage } from "./types.ts";
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -127,18 +128,38 @@ section(
   await runSectionGAudit(url, rulebook),
 );
 
-const scorecard = scoreFindings(findings, rulebook);
+// One date for the run: the saved audit's created_at and the report header.
+const date = new Date();
 
-printScorecard(scorecard, rulebook, coverage);
+// Never fatal: a failed save falls back to the findings and coverage in memory.
+const stored = await storeAudit(
+  { typedUrl: url, date, rulesetVersion: rulebook.version, coverage },
+  findings,
+);
+console.log("reason" in stored ? `Audit not saved — ${stored.reason}.` : `Audit ${stored.id} saved.`);
 
-await saveReport(new Date());
+const audit = "reason" in stored ? { id: undefined, findings, coverage } : stored;
+
+const scorecard = scoreFindings(audit.findings, rulebook);
+
+printScorecard(scorecard, rulebook, audit.coverage);
+
+await saveReport(date);
 
 // Never inside the repository, never over an earlier report, and never fatal:
 // the audit is already on screen, so a failed save costs only the file.
 async function saveReport(now: Date): Promise<void> {
   const folder = join(homedir(), "Downloads");
   const path = join(folder, `${new URL(url).hostname}-${timestamp(now)}.md`);
-  const markdown = renderReport({ url, date: now, findings, scorecard, rulebook, coverage });
+  const markdown = renderReport({
+    url,
+    date: now,
+    findings: audit.findings,
+    scorecard,
+    rulebook,
+    coverage: audit.coverage,
+    auditId: audit.id,
+  });
 
   try {
     // "wx" fails on an existing file, and writeFile never creates the folder.

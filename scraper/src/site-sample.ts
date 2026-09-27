@@ -210,8 +210,8 @@ function withoutFragment(url: URL): URL {
   return url;
 }
 
-function bareHost(url: URL): string {
-  return url.hostname.replace(/^www\./, "");
+export function bareHost(url: URL): string {
+  return url.hostname.replace(/^www\./, "").toLowerCase();
 }
 
 function samePage(a: URL, b: URL): boolean {
