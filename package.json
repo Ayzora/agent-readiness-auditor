@@ -3,8 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "scraper": "pnpm --filter scraper start"
   },

@@ -11,10 +11,6 @@ node_modules/
 # testing
 coverage/
 
-# next.js
-.next/
-out/
-
 # production builds
 build/
 dist/
@@ -33,12 +29,8 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # crawlee local run state
 scraper/storage/

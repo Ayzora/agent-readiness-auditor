@@ -25,9 +25,9 @@ come from the sitemap only — nothing follows links from page to page. Every
 run saves its **audit** — the site, the coverage and every finding — to
 Supabase and scores the copy it reads back, and `pnpm scraper --audit <id>`
 rebuilds a saved audit without contacting the site (see *The audit store*
-below). Beside it sits a `web` package that is still an
-unmodified `create-next-app` scaffold (plus one sample route proving routing
-works). The rulebook, `scraper/criteria.yaml`, holds every criterion's
+below). There is no web front end: the `web` package was an untouched
+`create-next-app` scaffold and was deleted when the project was wrapped up.
+The rulebook, `scraper/criteria.yaml`, holds every criterion's
 weight, report text, thresholds and Section D's required-property table, and
 `scraper/src/scorecard.ts` scores one audit's findings against it.
 `docs/scoring-pipeline.md` records how, and which of its steps are built.
@@ -506,13 +506,10 @@ Run from the repository root unless noted.
 | Command | What it does |
 | --- | --- |
 | `pnpm install` | Install all workspace deps |
-| `pnpm dev` | Next.js dev server on http://localhost:3000 |
-| `pnpm build` | Builds every workspace package |
-| `pnpm lint` | Lints every package — ESLint in `web`, `tsc --noEmit` in `scraper` |
+| `pnpm lint` | Type-checks the scraper with `tsc --noEmit` |
 | `pnpm scraper <url>` | Samples up to 40 pages from the site's sitemap (or only `<url>` without one), captures each, runs Section A's audit and Sections B, C, D, F and G's findings, saves the audit to Supabase, then prints the scorecard and the Fix first list and saves the report to `~/Downloads` |
 | `pnpm scraper --audit <id>` | Rebuilds saved audit `<id>`'s scorecard, Fix first list and report from Supabase alone, under today's `criteria.yaml`, without contacting the site |
 | `pnpm --filter scraper test` | Runs the scraper's tests — `node --test` over `src/**/*.test.ts` |
-| `pnpm --filter <pkg> <cmd>` | Run a command against a single package, e.g. `pnpm --filter web build` |
 
 Tests use Node's built-in runner, with no test-framework dependency. They
 cover Sections A, C, D, F and G, Section F's link discovery, the sitemap
@@ -551,15 +548,12 @@ by hand, not unit-tested.
 
 ## Environment files
 
-Each package keeps its own `.env`, copied from the `.env.example` beside it:
+The scraper keeps its own `.env`, copied from the `.env.example` beside it:
 
 ```bash
-cp web/.env.example web/.env
 cp scraper/.env.example scraper/.env
 ```
 
-- Next.js reads `web/.env` automatically; it will not look further up the
-  tree.
 - Node does **not** load `scraper/.env` on its own, so the scraper's `start`
   script passes `--env-file-if-exists=.env`. A missing file is not an error.
 - `scraper/.env` holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` — a
@@ -567,20 +561,17 @@ cp scraper/.env.example scraper/.env
   publishable key, which RLS shuts out. Without both, a run prints
   `Audit not saved — no Supabase settings in scraper/.env.` (or names the one
   missing) and otherwise behaves as if there were no database.
-- Keep each `.env.example` updated in the same commit as the variable that
+- Keep `.env.example` updated in the same commit as the variable that
   needs it — nothing enforces this.
 
 ## Architecture
 
 ### Workspace layout
 
-- `web/` — Next.js 16 (App Router), React 19, Tailwind 4.
 - `scraper/` — ESM TypeScript, built on got-scraping and Playwright, run without a
-  build step (Node's type-stripping executes `.ts` files directly).
-
-Both are private packages sharing the single root `pnpm-lock.yaml`. If they
-ever need to share types, add a third workspace package rather than importing
-across `web`/`scraper` with relative paths.
+  build step (Node's type-stripping executes `.ts` files directly). The only
+  workspace package; it uses the single root `pnpm-lock.yaml`.
+- `supabase/migrations/` — the SQL that creates the audit store's tables.
 
 ### Scraper module resolution
 
